@@ -3,13 +3,13 @@ function opticsModel(canvas, context) {
 	var om = new objectManager(context);
   var mh = new mouseHandler(context, om, vp);
   var kh = new keyHandler(context, om, mh);
-  vp.addToScene(new grid(context))
+  vp.addToScene(new grid(context));
   vp.addToScene(om);
   vp.addToScene(mh);
 	this.fps = 60;
 
 	this.init = function() {
-		om.add(new OpticalElement(context, {x: 0, y: 0, h: 200, w: 5, c1:{dx:-30}, c2:{dx:30}}));
+		om.add(new OpticalElement(context, {x: 0, y: 0, h: 200, w: 5, c1:{dx:-30}, c2:{dx:30} }));
 		om.add(new ls(context, om, {x: 250, y: 0, raycolor: 'rgba(236, 236, 64, 0.8)', rays: 36, type:'spot'}));
 		//om.add(new img(ctx, om));
 		//om.add(new img(ctx, om, {src: 'assets/opera.gif'}));
@@ -17,7 +17,7 @@ function opticsModel(canvas, context) {
 	};
 
 	update = function() { om.update(); };
-	draw = function() {	vp.renderScene(); /*context.clearRect(0, 0, context.canvas.width, context.canvas.height); om.draw();*/ };
+	draw = function() {	vp.renderScene(); };
 
 	this.run = function() {	update(); draw();	};
 	this.stop = function () { clearInterval(this._intervalID); };
@@ -33,7 +33,7 @@ function showPropertiesPanelForObject(obj) {
 
   // tie properties panel to object variables
   var panel_id, input_class;
-  for (key in Object.keys(obj)) {
+  for (var key in Object.keys(obj)) {
     var key_name = Object.keys(obj)[key];
     panel_id = ["#opticsSandbox-", obj.constructor.name, "Panel"].join("");
     input_class = ["input.opticsSandbox", obj.constructor.name, key_name].join(".");
@@ -88,8 +88,9 @@ function objectManager(context, properties) { 		// object manager
 	};
 
 	this.draw = function() {
-		for (var i in this.objs) this.objs[i].map(function(item) { item.draw(); });
-    for (var i in this.objs) this.objs[i].map(function(item) { item.drawHandles(); });
+    var i;
+		for (i in this.objs) this.objs[i].map(function(item) { item.draw(); });
+    for (i in this.objs) this.objs[i].map(function(item) { item.drawHandles(); });
 	};
 }
 function keyHandler(context, om, mh) {       // keyboard manager
@@ -141,25 +142,25 @@ function mouseHandler(context, om, vp) {				    // mouse manager
     } else for (var h in handles) { handles[h].active = true; selectedHandles.push(handles[h]); }
 
     if (selectedHandles.length == 1) {
-      showPropertiesPanelForObject(selectedHandles[0].parentObject)
+      showPropertiesPanelForObject(selectedHandles[0].parentObject);
     }
     return true;
-  };
+  }
   function addToSelection(handles) {
     if (handles.constructor.name == 'mouseHandle') { handles.active = true; selectedHandles.push(handles); }
     else for (var h in handles) { h.active = true; selectedHandles.push(handles[h]); }
     return true;
-  };
+  }
   function clearSelection() {
     for (var h in selectedHandles) selectedHandles[h].active = false;
     selectedHandles = [];
 
     hidePropertiesPanels();
     return true;
-  };
+  }
 
 	this.handleMouseDown = function(event) {
-    world_point = vp.transform.untransformPoint(event.clientX, event.clientY);
+    var world_point = vp.transform.untransformPoint(event.clientX, event.clientY);
 
     switch(event.button) {
       case 0:
@@ -169,7 +170,7 @@ function mouseHandler(context, om, vp) {				    // mouse manager
         leftMouseDown = true;
 
         // object manager interaction
-        object_interactions_handled = false;
+        var object_interactions_handled = false;
         // allow selection of a child handles within an object
   			for (var h = 0; h < selectedHandles.length; h++)
   				for (var hph = selectedHandles[h].parentObject.mouseHandles.length-1; hph >= 1 ; hph--)
@@ -181,7 +182,7 @@ function mouseHandler(context, om, vp) {				    // mouse manager
         // retain all objects selected if a parent object is being moved as part of a group
         if (!object_interactions_handled) {
     			var keep_selection = false;
-    			for (var h = 0; h < selectedHandles.length; h++)
+    			for (h = 0; h < selectedHandles.length; h++)
     				if (selectedHandles[h].pointWithin(world_point[0], world_point[1])) {
               keep_selection = true;
               object_interactions_handled = true;
@@ -209,7 +210,7 @@ function mouseHandler(context, om, vp) {				    // mouse manager
     }
   };
 	this.handleMouseUp = function(event) {
-    world_point = vp.transform.untransformPoint(event.clientX, event.clientY);
+    var world_point = vp.transform.untransformPoint(event.clientX, event.clientY);
 
     // left mouse up
     switch(event.button) {
@@ -256,14 +257,14 @@ function mouseHandler(context, om, vp) {				    // mouse manager
     lastMove.y = pos.y;
     pos.y = event.clientY;
 
-    pos_world = vp.transform.untransformPoint(pos.x, pos.y);
+    var pos_world = vp.transform.untransformPoint(pos.x, pos.y);
+    var lastMove_world = vp.transform.untransformPoint(lastMove.x, lastMove.y);
     posWorld.x = pos_world[0];
     posWorld.y = pos_world[1];
 
     // object interaction
     if (selectedHandles.length > 0 && leftMouseDown)
       for (var h = 0; h < selectedHandles.length; h++) {
-        lastMove_world = vp.transform.untransformPoint(lastMove.x, lastMove.y);
         selectedHandles[h].offset(pos_world[0] - lastMove_world[0], pos_world[1] - lastMove_world[1]);
       }
 
@@ -275,7 +276,7 @@ function mouseHandler(context, om, vp) {				    // mouse manager
   };
   this.handleMouseWheel = function(event) {
     vp.applyZoom(Math.pow(1.1, -event.deltaY * 0.01));
-  }
+  };
 
 	this.draw = function(transform) {
 		if (leftMouseDown && selectedHandles.length <= 0) {
@@ -291,26 +292,26 @@ function mouseHandler(context, om, vp) {				    // mouse manager
 	};
 
   console.log('adding mouse listener');
-	context.canvas.addEventListener("mousedown", this.handleMouseDown, false);
-	context.canvas.addEventListener("mouseup", this.handleMouseUp, false);
-	context.canvas.addEventListener("mousemove", this.handleMouseMove, false);
+  context.canvas.addEventListener("mousedown", this.handleMouseDown, false);
+  context.canvas.addEventListener("mouseup", this.handleMouseUp, false);
+  context.canvas.addEventListener("mousemove", this.handleMouseMove, false);
   context.canvas.addEventListener("mousewheel", this.handleMouseWheel, false);
 }
 function mouseHandle(in_context, in_parent, properties) { 	// mouse handle
 	var ctx = in_context;
 	this.parentObject = in_parent;
-	this.x = properties && !(properties.x === undefined) ? properties.x : 0;
-	this.y = properties && !(properties.y === undefined) ? properties.y : 0;
-	this.r = properties && !(properties.r === undefined) ? properties.r : 6;
-	this.ang = properties && !(properties.ang === undefined) ? properties.ang : 0;
-	this.fillColor = properties && !(properties.fillColor === undefined) ? properties.fillColor : '#EEEEEE';
-	this.fixHori = properties && !(properties.fixHori === undefined) ? properties.fixHori : false;
-	this.fixVert = properties && !(properties.fixVert === undefined) ? properties.fixVert : false;
-	this.fixAng = properties && !(properties.fixAng === undefined) ? properties.fixAng : null;
-	this.active = properties && !(properties.active === undefined) ? properties.active : false;
-	this.visible = properties && !(properties.visible === undefined) ? properties.visible : true;
-	this.useParentCollision = properties && !(properties.useParentCollision === undefined) ? properties.useParentCollision : false;
-	this.inheritFix = properties && !(properties.inheritFix === undefined) ? properties.inheritFix : false;
+	this.x = properties && properties.x !== undefined ? properties.x : 0;
+	this.y = properties && properties.y !== undefined ? properties.y : 0;
+	this.r = properties && properties.r !== undefined ? properties.r : 6;
+	this.ang = properties && properties.ang !== undefined ? properties.ang : 0;
+	this.fillColor = properties && properties.fillColor !== undefined ? properties.fillColor : '#EEEEEE';
+	this.fixHori = properties && properties.fixHori !== undefined ? properties.fixHori : false;
+	this.fixVert = properties && properties.fixVert !== undefined ? properties.fixVert : false;
+	this.fixAng = properties && properties.fixAng !== undefined ? properties.fixAng : null;
+	this.active = properties && properties.active !== undefined ? properties.active : false;
+	this.visible = properties && properties.visible !== undefined ? properties.visible : true;
+	this.useParentCollision = properties && properties.useParentCollision !== undefined ? properties.useParentCollision : false;
+	this.inheritFix = properties && properties.inheritFix !== undefined ? properties.inheritFix : false;
 	this.children = [];
 
 	this.pointWithin = function(in_x, in_y) {
@@ -388,11 +389,11 @@ function mouseHandle(in_context, in_parent, properties) { 	// mouse handle
 	};
 }
 function Viewport(context, properties) {
-  this.x = properties && !(properties.x === undefined) ? properties.x : context.canvas.width * 0.5;
-  this.y = properties && !(properties.y === undefined) ? properties.y : context.canvas.height * 0.5;
-  this.zoom = properties && !(properties.zoom === undefined) ? properties.zoom : 1.0;
+  this.x = properties && properties.x !== undefined ? properties.x : context.canvas.width * 0.5;
+  this.y = properties && properties.y !== undefined ? properties.y : context.canvas.height * 0.5;
+  this.zoom = properties && properties.zoom !== undefined ? properties.zoom : 1.0;
   this.transform = new Transform();
-  this.clearStyle = properties && !(properties.clearStyle === undefined) ? properties.clearStyle : null;
+  this.clearStyle = properties && properties.clearStyle !== undefined ? properties.clearStyle : null;
   this.scene = [];
 
   this.addToScene = function(obj) {
@@ -428,7 +429,7 @@ function Viewport(context, properties) {
 
     context.transform(this.transform.m[0], this.transform.m[1], this.transform.m[2],
                       this.transform.m[3], this.transform.m[4], this.transform.m[5]);
-    for (obj in this.scene) this.scene[obj].draw(this.transform);
+    for (var obj in this.scene) this.scene[obj].draw(this.transform);
   };
 
   this.updateTransformation(context);
@@ -439,7 +440,7 @@ Viewport.prototype.updateTransformation = function(context) {
   this.transform.scale(this.zoom, this.zoom);
   this.transform.translate(-context.canvas.width*0.5, -context.canvas.height*0.5);
   this.transform.translate(this.x, this.y);
-}
+};
 
 function grid(context, properties) {
   this.majorIncrement = 250;
@@ -448,20 +449,21 @@ function grid(context, properties) {
   this.minorColor = 'rgba(200,200,200,0.1)';
 
   this.draw = function(transform) {
-    vp_min_xy = transform.untransformPoint(0, 0);
-    vp_max_xy = transform.untransformPoint(context.canvas.width, context.canvas.height);
+    var vp_min_xy = transform.untransformPoint(0, 0);
+    var vp_max_xy = transform.untransformPoint(context.canvas.width, context.canvas.height);
+    var x, y;
 
     // draw major lines
     context.strokeStyle = this.majorColor;
     // vertical
-    for (var x = Math.floor(vp_min_xy[0] / this.majorIncrement); x <= Math.ceil(vp_max_xy[0] / this.majorIncrement); x++) {
+    for (x = Math.floor(vp_min_xy[0] / this.majorIncrement); x <= Math.ceil(vp_max_xy[0] / this.majorIncrement); x++) {
       context.beginPath();
       context.moveTo(x * this.majorIncrement, vp_min_xy[1]);
       context.lineTo(x * this.majorIncrement, vp_max_xy[1]);
       context.stroke();
     }
     // horizontal
-    for (var y = Math.floor(vp_min_xy[1] / this.majorIncrement); y <= Math.ceil(vp_max_xy[1] / this.majorIncrement); y++) {
+    for (y = Math.floor(vp_min_xy[1] / this.majorIncrement); y <= Math.ceil(vp_max_xy[1] / this.majorIncrement); y++) {
       context.beginPath();
       context.moveTo(vp_min_xy[0], y * this.majorIncrement);
       context.lineTo(vp_max_xy[0], y * this.majorIncrement);
@@ -471,14 +473,14 @@ function grid(context, properties) {
     // draw minor lines
     context.strokeStyle = this.minorColor;
     // vertical
-    for (var x = Math.floor(vp_min_xy[0] / this.minorIncrement); x <= Math.ceil(vp_max_xy[0] / this.minorIncrement); x++) {
+    for (x = Math.floor(vp_min_xy[0] / this.minorIncrement); x <= Math.ceil(vp_max_xy[0] / this.minorIncrement); x++) {
       context.beginPath();
       context.moveTo(x * this.minorIncrement, vp_min_xy[1]);
       context.lineTo(x * this.minorIncrement, vp_max_xy[1]);
       context.stroke();
     }
     // horizontal
-    for (var y = Math.floor(vp_min_xy[1] / this.minorIncrement); y <= Math.ceil(vp_max_xy[1] / this.minorIncrement); y++) {
+    for (y = Math.floor(vp_min_xy[1] / this.minorIncrement); y <= Math.ceil(vp_max_xy[1] / this.minorIncrement); y++) {
       context.beginPath();
       context.moveTo(vp_min_xy[0], y * this.minorIncrement);
       context.lineTo(vp_max_xy[0], y * this.minorIncrement);
@@ -503,13 +505,13 @@ function grid(context, properties) {
 function OpticalElement(context, properties) {
   // initialization
   this.context = context;
-	this.x = properties && !(properties.x === undefined) ? properties.x : 0;
-	this.y = properties && !(properties.y === undefined) ? properties.y : 0;
-	this.h = properties && !(properties.h === undefined) ? properties.h : 100;
-	this.w = properties && !(properties.w === undefined) ? properties.w : 10;
-	this.c1 = {dx: properties && !(properties.c1.dx === undefined) ? properties.c1.dx : -20};
-	this.c2 = {dx: properties && !(properties.c2.dx === undefined) ? properties.c2.dx : 20};
-	this.refidx = properties && !(properties.refidx === undefined) ? properties.refidx : 2.15;
+	this.x = properties && properties.x !== undefined ? properties.x : 0;
+	this.y = properties && properties.y !== undefined ? properties.y : 0;
+	this.h = properties && properties.h !== undefined ? properties.h : 100;
+	this.w = properties && properties.w !== undefined ? properties.w : 10;
+	this.c1 = {dx: properties && properties.c1.dx !== undefined ? properties.c1.dx : -20};
+	this.c2 = {dx: properties && properties.c2.dx !== undefined ? properties.c2.dx : 20};
+	this.refidx = properties && properties.refidx !== undefined ? properties.refidx : 2.15;
 	this.mouseHandles = [];
 
 	this.initMouseHandles = function() {
@@ -547,7 +549,7 @@ OpticalElement.prototype.update = function () {
 
   // update additional circle parameters from 'dx' handle
   this.updateCircleGeometry();
-}
+};
 OpticalElement.prototype.updateCircleGeometry = function () {
   this.c1.x  = this.x-this.w/2+this.c1.dx/2-Math.pow(this.h, 2)/this.c1.dx*0.125;
   this.c1.y  = this.y;
@@ -576,7 +578,7 @@ OpticalElement.prototype.draw = function () {
     this.c1.dx > 0);
   this.context.lineTo(this.x+this.w/2, this.y-this.h/2);
   this.context.fill();
-}
+};
 OpticalElement.prototype.drawHandles = function() {
   for (var i = 0; i < this.mouseHandles.length; i++) this.mouseHandles[i].draw();
 };
@@ -587,22 +589,22 @@ OpticalElement.prototype.pointWithin = function(x, y) {
   within = within * (y <= this.y + this.h/2) * (y >= this.y - this.h/2);
   within = within * (x <= this.x + Math.max(this.w/2, this.w/2 + this.c2.dx)) * (x >= this.x - Math.max(this.w/2, this.w/2 - this.c1.dx));
   return within;
-}
+};
 
 
 function ls(context, om, properties) { 			     	// light source
 	var ctx = context;
 
-	this.type = properties && !(properties.type === undefined) ? properties.type : 'sun';
-	this.spray = properties && !(properties.spray === undefined) ? properties.spray : 3.0;
-	this.w = properties && !(properties.w === undefined) ? properties.w : 5;
-	this.x = properties && !(properties.x === undefined) ? properties.x : 500;
-	this.y = properties && !(properties.y === undefined) ? properties.y : 200;
-	this.r = properties && !(properties.r === undefined) ? properties.r : 10;
-	this.rays = properties && !(properties.rays === undefined) ? properties.rays   : 24;
-	this.raycolor = properties && !(properties.raycolor === undefined) ? properties.raycolor : '';
-	this.ang = properties && !(properties.ang === undefined) ? properties.ang : Math.PI;
-	this.dist = properties && !(properties.dist === undefined) ? properties.dist : null;
+	this.type = properties && properties.type !== undefined ? properties.type : 'sun';
+	this.spray = properties && properties.spray !== undefined ? properties.spray : 3.0;
+	this.w = properties && properties.w !== undefined ? properties.w : 5;
+	this.x = properties && properties.x !== undefined ? properties.x : 500;
+	this.y = properties && properties.y !== undefined ? properties.y : 200;
+	this.r = properties && properties.r !== undefined ? properties.r : 10;
+	this.rays = properties && properties.rays !== undefined ? properties.rays   : 24;
+	this.raycolor = properties && properties.raycolor !== undefined ? properties.raycolor : '';
+	this.ang = properties && properties.ang !== undefined ? properties.ang : Math.PI;
+	this.dist = properties && properties.dist !== undefined ? properties.dist : null;
 	this.mouseHandles = null;
 
 	this.update = function() {
@@ -667,21 +669,21 @@ function ls(context, om, properties) { 			     	// light source
 		for (i = 0, int_le = 0; i < (typeof(les) == 'undefined' ? 0 : les.length); i++, int_le = 0) {
 			//top (line)
 			p = intersectionLineLine(les[i].x-les[i].w/2, les[i].y-les[i].h/2, les[i].x+les[i].w/2, les[i].y-les[i].h/2, ori.x, ori.y, ori.x+Math.cos(ang), ori.y+Math.sin(ang));
-			if (p != null && p.x >= les[i].x-les[i].w/2 && p.x <= les[i].x+les[i].w/2 && (p.x == ori.x || Math.sign(p.x-ori.x) == Math.sign(Math.cos(ang))) && (p.y == ori.y || Math.sign(p.y-ori.y) == Math.sign(Math.sin(ang)))) {
+			if (p !== null && p.x >= les[i].x-les[i].w/2 && p.x <= les[i].x+les[i].w/2 && (p.x == ori.x || Math.sign(p.x-ori.x) == Math.sign(Math.cos(ang))) && (p.y == ori.y || Math.sign(p.y-ori.y) == Math.sign(Math.sin(ang)))) {
         d = (p.x-ori.x)*Math.cos(ang)+(p.y-ori.y)*Math.sin(ang);
 				if (d >= sens && d < minlen) { int_le = 1; minlen = d; p_int = {x:p.x, y:p.y}; t_int = p.t1; }
 			}
 
 			//bottom (line)
 			p = intersectionLineLine(les[i].x-les[i].w/2, les[i].y+les[i].h/2, les[i].x+les[i].w/2, les[i].y+les[i].h/2, ori.x, ori.y, ori.x+Math.cos(ang), ori.y+Math.sin(ang));
-			if (p != null && p.x >= les[i].x-les[i].w/2 && p.x <= les[i].x+les[i].w/2 && (p.x == ori.x || Math.sign(p.x-ori.x) == Math.sign(Math.cos(ang))) && (p.y == ori.y ||  Math.sign(p.y-ori.y) == Math.sign(Math.sin(ang)))) {
-				d = (p.x-ori.x)*Math.cos(ang)+(p.y-ori.y)*Math.sin(ang);
+			if (p !== null && p.x >= les[i].x-les[i].w/2 && p.x <= les[i].x+les[i].w/2 && (p.x == ori.x || Math.sign(p.x-ori.x) == Math.sign(Math.cos(ang))) && (p.y == ori.y ||  Math.sign(p.y-ori.y) == Math.sign(Math.sin(ang)))) {
+        d = (p.x-ori.x)*Math.cos(ang)+(p.y-ori.y)*Math.sin(ang);
 				if (d >= sens && d < minlen) { int_le = 1; minlen = d; p_int = {x:p.x, y:p.y}; t_int = p.t1; }
 			}
 
 			// left arc (circle)
 			p = intersectionLineCircle(ori.x, ori.y, ori.x+Math.cos(ang), ori.y+Math.sin(ang), les[i].c1.x, les[i].c1.y, les[i].c1.r);
-			if (p != null) {
+			if (p !== null) {
 				ap1 = Math.acos((p.p1.x-les[i].c1.x)/Math.sqrt(Math.pow(p.p1.x-les[i].c1.x, 2)+Math.pow(p.p1.y-les[i].c1.y, 2)));
 				ap2 = Math.acos((p.p2.x-les[i].c1.x)/Math.sqrt(Math.pow(p.p2.x-les[i].c1.x, 2)+Math.pow(p.p2.y-les[i].c1.y, 2)));
 				amax = les[i].c1.dx > 0 ? les[i].c1.a1 : les[i].c1.a2;
@@ -697,7 +699,7 @@ function ls(context, om, properties) { 			     	// light source
 
 			// right arc (circle)
 			p = intersectionLineCircle(ori.x, ori.y, ori.x+Math.cos(ang), ori.y+Math.sin(ang), les[i].c2.x, les[i].c2.y, les[i].c2.r);
-			if (p != null) {
+			if (p !== null) {
 				ap1 = Math.acos((p.p1.x-les[i].c2.x)/Math.sqrt(Math.pow(p.p1.x-les[i].c2.x, 2)+Math.pow(p.p1.y-les[i].c2.y, 2)));
 				ap2 = Math.acos((p.p2.x-les[i].c2.x)/Math.sqrt(Math.pow(p.p2.x-les[i].c2.x, 2)+Math.pow(p.p2.y-les[i].c2.y, 2)));
 				amax = les[i].c2.dx < 0 ? les[i].c2.a1 : les[i].c2.a2;
@@ -712,8 +714,9 @@ function ls(context, om, properties) { 			     	// light source
 			}
 
 			// update the refractive index ratio if this element was intersected with a new closest intersection
-			if (int_le)
+			if (int_le) {
         nr_int = Math.pow(les[i].refidx / 1.0, les[i].pointWithin(p_int.x + Math.cos(ang) * sens, p_int.y + Math.sin(ang) * sens) ? -1 : 1);
+      }
 		}
 
 		// draw segment
@@ -727,8 +730,8 @@ function ls(context, om, properties) { 			     	// light source
 			var ang_incoming = Math.PI * 0.5 - (ang - t_int + Math.PI * 0.5) % Math.PI;
 			var asin_in = nr_int * Math.sin(ang_incoming);
 			if (Math.abs(asin_in) > 1) {
-				return;
         // ang_new = (ang + Math.PI) + 2 * ang_incoming; // used for internal reflection of rays
+				return null;
 			} else {
 				var ang_outgoing = Math.asin(asin_in);
 				ang_new = ang + ang_incoming - ang_outgoing;
@@ -816,7 +819,7 @@ function img(context, objectManager, properties) {			     	// image light source
 // GEOMETRY HELPER FUNCTIONS
 function intersectionLineLine(x1, y1, x2, y2, x3, y3, x4, y4) {
 	var invdenom = ((x1-x2)*(y3-y4)-(y1-y2)*(x3-x4));
-	if (invdenom == 0) { return null; } else { invdenom = 1/invdenom; }
+	if (invdenom === 0) { return null; } else { invdenom = 1/invdenom; }
 	return {
 		x:((x1*y2-y1*x2)*(x3-x4)-(x1-x2)*(x3*y4-y3*x4))*invdenom,
 		y:((x1*y2-y1*x2)*(y3-y4)-(y1-y2)*(x3*y4-y3*x4))*invdenom,
@@ -968,4 +971,4 @@ Transform.prototype.untransformPoint = function(px, py) {
   px =  x * this.m[3] * d - y * this.m[2] * d + d * (this.m[2] * this.m[5] - this.m[3] * this.m[4]);
   py = -x * this.m[1] * d + y * this.m[0] * d + d * (this.m[1] * this.m[4] - this.m[0] * this.m[5]);
   return [px, py];
-}
+};

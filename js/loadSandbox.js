@@ -3,8 +3,8 @@ $(document).ready(function() {
 
   // create canvas element within .opticsSandbox
   var c = document.createElement("canvas");
-  c.setAttribute("tabindex", 1)
-  c.setAttribute("class", "opticsSandbox-canvas")
+  c.setAttribute("tabindex", 1);
+  c.setAttribute("class", "opticsSandbox-canvas");
 	sandboxDiv.append(c);
 	var ctx = c.getContext("2d");
 
@@ -14,20 +14,20 @@ $(document).ready(function() {
   	ctx.canvas.height = ctx.canvas.parentNode.offsetHeight;
   }
 
-  window.onresize = function(event) { resizeCanvas(); }
+  window.onresize = function(event) { resizeCanvas(); };
   resizeCanvas();
 
 	// create and begin our model
 	var lm = new opticsModel(c, ctx);
 
   // append properties panel .html overlays
-  var propertiesDiv = document.createElement("div")
+  var propertiesDiv = document.createElement("div");
   propertiesDiv.setAttribute("class", "opticsSandbox-Panels");
   sandboxDiv.append(propertiesDiv);
   $(".opticsSandbox-Panels").load("assets/Panels.html");
 
   // append the watermark panel .html overlay
-  var watermarkDiv = document.createElement("div")
+  var watermarkDiv = document.createElement("div");
   watermarkDiv.setAttribute("class", "opticsSandbox-Watermark");
   sandboxDiv.append(watermarkDiv);
   $(".opticsSandbox-Watermark").load("assets/Watermark.html");
