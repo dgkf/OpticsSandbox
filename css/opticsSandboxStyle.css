@@ -1,0 +1,213 @@
+/* general formatting */
+body, div, canvas, h1, h2, h3, h4, p {
+	margin: 0; padding: 0;
+}
+canvas:focus {
+	outline: none;
+}
+.opticsSandbox {
+  overflow: hidden;
+}
+.opticsSandbox canvas {
+  width: 100%;
+  height: 100%;
+  z-index: 1000;
+}
+
+/* scroll bars */
+.opticsSandbox ::-webkit-scrollbar{
+  width:9px;
+  height:9px;
+}
+.opticsSandbox ::-webkit-scrollbar-button:start:decrement,
+.opticsSandbox ::-webkit-scrollbar-button:end:increment {
+  display:block;
+  height:0;
+  background-color:transparent;
+}
+.opticsSandbox ::-webkit-scrollbar-track-piece{
+  background-color:#CACACA;
+  -webkit-border-radius:0;
+  -webkit-border-bottom-right-radius:8px;
+  -webkit-border-bottom-left-radius:8px;
+}
+.opticsSandbox ::-webkit-scrollbar-thumb:vertical, .opticsSandbox ::-webkit-scrollbar-thumb:horizontal {
+  height:50px;
+  background-color:#999;
+  -webkit-border-radius:8px;
+}
+
+/* input formatting */
+.opticsSandbox-Panel input[type=range]{
+    -webkit-appearance: none;
+    height: 26px;
+    flex: 1 1 auto;
+    background: transparent;
+}
+.opticsSandbox-Panel input[type=range]::-webkit-slider-runnable-track {
+    height: 3px;
+    background: rgb(150,150,150);
+    border: none;
+    float: left;
+}
+.opticsSandbox-Panel input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    border: none;
+    height: 16px;
+    width: 16px;
+    border-radius: 50%;
+    background: rgb(220, 220, 220);
+    margin-top: -6.5px;
+    box-shadow: 0px 0px 8px rgba(0,0,0,0.2);
+}
+.opticsSandbox-Panel input[type=range]:focus {
+    outline: none;
+}
+.opticsSandbox-Panel input[type=range]:focus::-webkit-slider-runnable-track {
+    background: rgb(180,180,180);
+}
+.opticsSandbox-Panel input[type=number]::-webkit-inner-spin-button,
+.opticsSandbox-Panel input[type=number]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.opticsSandbox-Panel .hide-radio + label {
+  display: block;
+  float: left;
+  width: 60px;
+  padding: 4px 0;
+  margin: 3px;
+  border-radius: 20px;
+  text-align: center;
+  background-color: rgba(150,150,150,1.0);
+  font-family: 'Oswald', sans-serif;
+  font-weight: bold;
+  color: rgb(240,240,240);;
+  -webkit-transition: background-color 0.1s ease-in-out;
+  -moz-transition: background-color 0.1s ease-in-out;
+  -o-transition: background-color 0.1s ease-in-out;
+  transition: background-color 0.1s ease-in-out;
+}
+.opticsSandbox-Panel .hide-radio {
+  display: none;
+}
+.opticsSandbox-Panel .hide-radio:checked + label {
+  display: inline-block;
+  background-color: rgba(190,190,190,1.0);
+  box-shadow: 0px 0px 5px rgb(0,0,0,1.0);
+}
+.opticsSandbox-Panel input[type=text], .opticsSandbox-Panel input[type=number] {
+    border: none;
+    border-radius: 4px;
+    float: left;
+
+    -webkit-box-shadow:
+      inset 0 0 8px  rgba(0,0,0,0.1),
+            0 0 16px rgba(0,0,0,0.1);
+    -moz-box-shadow:
+      inset 0 0 8px  rgba(0,0,0,0.1),
+            0 0 16px rgba(0,0,0,0.1);
+    box-shadow:
+      inset 0 0 8px  rgba(0,0,0,0.1),
+            0 0 16px rgba(0,0,0,0.1);
+
+    width: 50px;
+    padding: 7px;
+    margin: 0px 15px;
+    flex: 0 0 auto;
+
+    background: rgba(170,170,170,1.0);
+    color: rgb(240,240,240);
+    font-size: 1.0em;
+    font-weight: bold;
+    text-align: center;
+}
+.opticsSandbox-Panel input[type=text]:focus, .opticsSandbox-Panel input[type=number]:focus {
+    background: rgba(190,190,190,1.0);
+    outline: none;
+}
+
+/* watermark formatting */
+.opticsSandbox-Watermark {
+  position: absolute;
+  float: right;
+  bottom: 0;
+  right: 0;
+  font-family: sans-serif;
+  font-size: 1em;
+  color: rgba(200,200,200,0.6);
+  background: rgba(20,20,20,0.6);
+  padding: 4px 8px;
+  z-index: 1010;
+}
+.opticsSandbox-Watermark a {
+  color: rgba(200,200,200,0.6);
+  text-decoration: none;
+}
+.opticsSandbox-Watermark a:hover {
+  color: rgba(255,255,255,0.6);
+}
+
+/* panels formatting */
+.opticsSandbox-Panels {
+  position: absolute;
+  overflow: hidden;
+  pointer-events: none;
+  top: 0px;
+  left: 0px;
+  width: 100%;
+  height: 100%;
+}
+.opticsSandbox-Panel {
+  font-family: "Open Sans", Helvetica, sans-serif;
+
+  position: absolute;
+  overflow: hidden;
+  pointer-events: all;
+  top: 0px;
+  height: 100%;
+  width: 230px;
+  padding-left: 20px;
+
+  background: rgba(128,128,136,0.8);
+  box-shadow: 0px 0px 15px rgba(0,0,0,0.8);
+  z-index: 1001;
+
+  -webkit-transition: left 0.25s, right 0.25s;
+  transition: left 0.25s, right 0.25s;
+}
+.opticsSandbox-propertiesPanel { left: -270px; }
+.opticsSandbox-propertiesPanel.visible { left: 0px; }
+.opticsSandbox-helpPanel { right: -270px; }
+.opticsSandbox-helpPanel.visible { right: 0px; }
+.opticsSandbox-Panel h1 {
+  color: rgb(212,212,212);
+  font-size: 1.8em;
+  padding: 0.5em 0em 0.5em 0em;
+}
+.opticsSandbox-Panel h4 {
+  color: rgb(24,24,24);
+  font-size: 1em;
+  line-height: 1.4em;
+}
+.opticsSandbox-Panel-wrapper {
+  position: relative;
+  display: flex;
+  top: 0px;
+  left: 0px;
+  height: 100%;
+  width: 100%;
+  flex-flow: column;
+}
+.opticsSandbox-Panel-header {
+  flex: 0 1 auto;
+}
+.opticsSandbox-Panel-formContainer {
+  flex: 1 1 auto;
+  overflow-y: auto;
+}
+.opticsSandbox-Panel-formItem {
+  display: flex;
+  flex-flow: row;
+  margin: 0px 0px 10px 10px;
+}

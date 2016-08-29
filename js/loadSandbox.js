@@ -32,11 +32,3 @@ $(document).ready(function() {
   sandboxDiv.append(watermarkDiv);
   $(".opticsSandbox-Watermark").load("assets/Watermark.html");
 });
-/*
-panelLoadCallback = function () {
-  // Add interacing interactions
-  $("input.opticsSandbox").on("input change", function(event) {
-    $('.'+event.target.className.split(' ').join('.')).val(event.target.value);
-  });
-};
-*/

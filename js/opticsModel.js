@@ -40,6 +40,10 @@ function showPropertiesPanelForObject(obj) {
 
     // remove pre-existing callbacks tied to property updates in this field
     $([panel_id, input_class].join(" ")).off("input change");
+
+    // load value from selected object for displaying
+    $([panel_id, input_class].join(" ")).val(obj[Object.keys(obj)[key]]);
+
     // associate callback to edit object property on field updates
     $([panel_id, input_class].join(" ")).on("input change", function (event) {
       console.log(obj.constructor.name, ".", event.target.className.match(/[^ ]+$/mg)[0], ": ", obj[event.target.className.match(/[^ ]+$/mg)[0]]);
@@ -92,7 +96,7 @@ function keyHandler(context, om, mh) {       // keyboard manager
   var handleKeyDown = function(event) {
     switch (event.code) {
       case "KeyE":
-        om.add(new le(context, {x: mh.posWorld.x, y: mh.posWorld.y, h: 500, w: 1, c1:{dx:-80}, c2:{dx:80}}));
+        om.add(new OpticalElement(context, {x: mh.posWorld.x, y: mh.posWorld.y, h: 500, w: 1, c1:{dx:-80}, c2:{dx:80}}));
         break;
       case "KeyS":
         om.add(new ls(context, om, {x: mh.posWorld.x, y: mh.posWorld.y, raycolor: 'rgba(236, 236, 64, 0.5)', rays: 12}));
