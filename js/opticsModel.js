@@ -10,7 +10,7 @@ function opticsModel(canvas, context) {
 
 	this.init = function() {
 		om.add(new OpticalElement(context, {x: 0, y: 0, h: 200, w: 5, c1:{dx:-30}, c2:{dx:30}}));
-		om.add(new ls(context, om, {x: 300, y: 0, raycolor: 'rgba(236, 236, 64, 0.8)', rays: 36, type:'spot'}));
+		om.add(new ls(context, om, {x: 250, y: 0, raycolor: 'rgba(236, 236, 64, 0.8)', rays: 36, type:'spot'}));
 		//om.add(new img(ctx, om));
 		//om.add(new img(ctx, om, {src: 'assets/opera.gif'}));
 		//om.add(new le(ctx, {x: 100, y: 300, h: 200, w: 10, c1:{dx:-10}, c2:{dx:10}}));
@@ -594,8 +594,8 @@ function ls(context, om, properties) { 			     	// light source
 	var ctx = context;
 
 	this.type = properties && !(properties.type === undefined) ? properties.type : 'sun';
-	this.spray = properties && !(properties.spray === undefined) ? properties.spray : 10;
-	this.w = properties && !(properties.w === undefined) ? properties.w : 200;
+	this.spray = properties && !(properties.spray === undefined) ? properties.spray : 3.0;
+	this.w = properties && !(properties.w === undefined) ? properties.w : 5;
 	this.x = properties && !(properties.x === undefined) ? properties.x : 500;
 	this.y = properties && !(properties.y === undefined) ? properties.y : 200;
 	this.r = properties && !(properties.r === undefined) ? properties.r : 10;
