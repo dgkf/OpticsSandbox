@@ -1,3 +1,5 @@
+[Live Demo](https://dgkf.github.io/OpticsSandbox/)
+
 # OpticsSandbox
 A simulation of light paths through optical elements for educational purposes.
 
