@@ -1,7 +1,7 @@
 # OpticsSandbox
 A simulation of light paths through optical elements for educational purposes.
 
-![screenshot](https://raw.githubusercontent.com/dgkf/OpticsSandbox/master/.git/imgs/screenshot_001.png)
+![Screenshot v0.1](https://cloud.githubusercontent.com/assets/18220321/18066282/96480a52-6dec-11e6-9974-8621a62c8944.png)
 
 ### Usage For Deployment
 Add an opticsSandbox div to an html document. This is used as an anchor to build the rest of the html elements from within javascript.
