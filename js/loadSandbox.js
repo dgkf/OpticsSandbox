@@ -26,8 +26,17 @@ $(document).ready(function() {
   sandboxDiv.append(propertiesDiv);
   $(".opticsSandbox-Panels").load("assets/Panels.html");
 
+  // append the watermark panel .html overlay
   var watermarkDiv = document.createElement("div")
   watermarkDiv.setAttribute("class", "opticsSandbox-Watermark");
   sandboxDiv.append(watermarkDiv);
   $(".opticsSandbox-Watermark").load("assets/Watermark.html");
 });
+/*
+panelLoadCallback = function () {
+  // Add interacing interactions
+  $("input.opticsSandbox").on("input change", function(event) {
+    $('.'+event.target.className.split(' ').join('.')).val(event.target.value);
+  });
+};
+*/

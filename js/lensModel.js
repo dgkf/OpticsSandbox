@@ -9,7 +9,7 @@ function opticsModel(canvas, context) {
 	this.fps = 60;
 
 	this.init = function() {
-		om.add(new le(context, {x: 0, y: 0, h: 200, w: 5, c1:{dx:-30}, c2:{dx:30}}));
+		om.add(new OpticalElement(context, {x: 0, y: 0, h: 200, w: 5, c1:{dx:-30}, c2:{dx:30}}));
 		om.add(new ls(context, om, {x: 300, y: 0, raycolor: 'rgba(236, 236, 64, 0.8)', rays: 36, type:'spot'}));
 		//om.add(new img(ctx, om));
 		//om.add(new img(ctx, om, {src: 'assets/opera.gif'}));
@@ -24,6 +24,35 @@ function opticsModel(canvas, context) {
 
 	this.init();
 	this._intervalID = setInterval(this.run, 1000/this.fps);
+}
+
+// CALLBACKS
+function showPropertiesPanelForObject(obj) {
+  // make panel visible
+  $("#opticsSandbox-"+obj.constructor.name+"Panel").addClass("visible");
+
+  // tie properties panel to object variables
+  var panel_id, input_class;
+  for (key in Object.keys(obj)) {
+    var key_name = Object.keys(obj)[key];
+    panel_id = ["#opticsSandbox-", obj.constructor.name, "Panel"].join("");
+    input_class = ["input.opticsSandbox", obj.constructor.name, key_name].join(".");
+
+    // remove pre-existing callbacks tied to property updates in this field
+    $([panel_id, input_class].join(" ")).off("input change");
+    // associate callback to edit object property on field updates
+    $([panel_id, input_class].join(" ")).on("input change", function (event) {
+      console.log(obj.constructor.name, ".", event.target.className.match(/[^ ]+$/mg)[0], ": ", obj[event.target.className.match(/[^ ]+$/mg)[0]]);
+
+      // update other fields which redirect to the same variable
+      $('.'+event.target.className.split(' ').join('.')).val(event.target.value);
+      // strip the variable name from the input element's class and use it to update the selected object
+      obj[event.target.className.match(/[^ ]+$/mg)[0]] = event.target.value;
+    });
+  }
+}
+function hidePropertiesPanels() {
+  $(".opticsSandbox-propertiesPanel").removeClass("visible");
 }
 
 // OBJECTS
@@ -106,6 +135,10 @@ function mouseHandler(context, om, vp) {				    // mouse manager
     clearSelection();
     if (handles.constructor.name == 'mouseHandle') { handles.active = true; selectedHandles.push(handles);
     } else for (var h in handles) { handles[h].active = true; selectedHandles.push(handles[h]); }
+
+    if (selectedHandles.length == 1) {
+      showPropertiesPanelForObject(selectedHandles[0].parentObject)
+    }
     return true;
   };
   function addToSelection(handles) {
@@ -116,6 +149,8 @@ function mouseHandler(context, om, vp) {				    // mouse manager
   function clearSelection() {
     for (var h in selectedHandles) selectedHandles[h].active = false;
     selectedHandles = [];
+
+    hidePropertiesPanels();
     return true;
   };
 
@@ -257,21 +292,21 @@ function mouseHandler(context, om, vp) {				    // mouse manager
 	context.canvas.addEventListener("mousemove", this.handleMouseMove, false);
   context.canvas.addEventListener("mousewheel", this.handleMouseWheel, false);
 }
-function mouseHandle(in_context, in_parent, props_in) { 	// mouse handle
+function mouseHandle(in_context, in_parent, properties) { 	// mouse handle
 	var ctx = in_context;
 	this.parentObject = in_parent;
-	this.x = props_in && !(props_in.x === undefined) ? props_in.x : 0;
-	this.y = props_in && !(props_in.y === undefined) ? props_in.y : 0;
-	this.r = props_in && !(props_in.r === undefined) ? props_in.r : 6;
-	this.ang = props_in && !(props_in.ang === undefined) ? props_in.ang : 0;
-	this.fillColor = props_in && !(props_in.fillColor === undefined) ? props_in.fillColor : '#EEEEEE';
-	this.fixHori = props_in && !(props_in.fixHori === undefined) ? props_in.fixHori : false;
-	this.fixVert = props_in && !(props_in.fixVert === undefined) ? props_in.fixVert : false;
-	this.fixAng = props_in && !(props_in.fixAng === undefined) ? props_in.fixAng : null;
-	this.active = props_in && !(props_in.active === undefined) ? props_in.active : false;
-	this.visible = props_in && !(props_in.visible === undefined) ? props_in.visible : true;
-	this.useParentCollision = props_in && !(props_in.useParentCollision === undefined) ? props_in.useParentCollision : false;
-	this.inheritFix = props_in && !(props_in.inheritFix === undefined) ? props_in.inheritFix : false;
+	this.x = properties && !(properties.x === undefined) ? properties.x : 0;
+	this.y = properties && !(properties.y === undefined) ? properties.y : 0;
+	this.r = properties && !(properties.r === undefined) ? properties.r : 6;
+	this.ang = properties && !(properties.ang === undefined) ? properties.ang : 0;
+	this.fillColor = properties && !(properties.fillColor === undefined) ? properties.fillColor : '#EEEEEE';
+	this.fixHori = properties && !(properties.fixHori === undefined) ? properties.fixHori : false;
+	this.fixVert = properties && !(properties.fixVert === undefined) ? properties.fixVert : false;
+	this.fixAng = properties && !(properties.fixAng === undefined) ? properties.fixAng : null;
+	this.active = properties && !(properties.active === undefined) ? properties.active : false;
+	this.visible = properties && !(properties.visible === undefined) ? properties.visible : true;
+	this.useParentCollision = properties && !(properties.useParentCollision === undefined) ? properties.useParentCollision : false;
+	this.inheritFix = properties && !(properties.inheritFix === undefined) ? properties.inheritFix : false;
 	this.children = [];
 
 	this.pointWithin = function(in_x, in_y) {
@@ -460,62 +495,19 @@ function grid(context, properties) {
     context.stroke();
   };
 }
-function le(context, props_in) { 						             	// lens element
-	this.update = function() {
-		// update geometry from mouse handle positions
-		this.x = this.mouseHandles[0].x;
-		this.y = this.mouseHandles[0].y;
-		this.w = (this.mouseHandles[1].x-this.mouseHandles[0].x)*2;
-		this.h = (this.mouseHandles[0].y-this.mouseHandles[1].y)*2;
-		this.c1.dx = this.mouseHandles[2].x-2*this.mouseHandles[0].x+this.mouseHandles[1].x;
-		this.mouseHandles[2].y = this.mouseHandles[0].y;
-		this.c2.dx = this.mouseHandles[3].x-this.mouseHandles[1].x;
-		this.mouseHandles[3].y = this.mouseHandles[0].y;
 
-		// update additional circle parameters from 'dx' handle
-		this.updateCircGeom();
-	};
-	this.draw = function() {
-		context.lineWidth=0.5;
-		context.fillStyle='rgba(128, 164, 255, 0.6)';
+function OpticalElement(context, properties) {
+  // initialization
+  this.context = context;
+	this.x = properties && !(properties.x === undefined) ? properties.x : 0;
+	this.y = properties && !(properties.y === undefined) ? properties.y : 0;
+	this.h = properties && !(properties.h === undefined) ? properties.h : 100;
+	this.w = properties && !(properties.w === undefined) ? properties.w : 10;
+	this.c1 = {dx: properties && !(properties.c1.dx === undefined) ? properties.c1.dx : -20};
+	this.c2 = {dx: properties && !(properties.c2.dx === undefined) ? properties.c2.dx : 20};
+	this.refidx = properties && !(properties.refidx === undefined) ? properties.refidx : 2.15;
+	this.mouseHandles = [];
 
-		context.beginPath();
-		context.arc(this.c2.x, this.c2.y, this.c2.r,
-			this.c2.a1,
-			this.c2.a2,
-			this.c2.dx < 0);
-		context.arc(this.c1.x, this.c1.y, this.c1.r,
-			this.c1.a1,
-			this.c1.a2,
-			this.c1.dx > 0);
-		context.lineTo(this.x+this.w/2, this.y-this.h/2);
-		context.fill();
-	};
-	this.drawHandles = function() {
-		for (var i = 0; i < this.mouseHandles.length; i++) this.mouseHandles[i].draw();
-	};
-
-	this.updateCircGeom = function() {
-		this.c1.x  = this.x-this.w/2+this.c1.dx/2-Math.pow(this.h, 2)/this.c1.dx*0.125;
-		this.c1.y  = this.y;
-		this.c1.r  = Math.abs(this.x-this.w/2+this.c1.dx-this.c1.x);
-		this.c1.a1 = (this.c1.dx < 0 ? Math.PI : 0) - Math.atan(-(this.h/2)/((this.x-this.w/2)-this.c1.x));
-		this.c1.a2 = (this.c1.dx < 0 ? Math.PI : 0) - Math.atan((this.h/2)/((this.x-this.w/2)-this.c1.x));
-
-		this.c2.x  = this.x+this.w/2+this.c2.dx/2-Math.pow(this.h, 2)/this.c2.dx*0.125;
-		this.c2.y  = this.y;
-		this.c2.r  = Math.abs(this.x+this.w/2+this.c2.dx-this.c2.x);
-		this.c2.a1 = (this.c2.dx < 0 ? Math.PI : 0) - Math.atan((this.h/2)/((this.x+this.w/2)-this.c2.x));
-		this.c2.a2 = (this.c2.dx < 0 ? Math.PI : 0) - Math.atan(-(this.h/2)/((this.x+this.w/2)-this.c2.x));
-	};
-	this.pointWithin = function(x, y) {
-		var within = 1;
-		within = within * (this.c1.dx < 0 ? (Math.pow(x-this.c1.x,2)+Math.pow(y-this.c1.y,2) < Math.pow(this.c1.r, 2) ? 1 : 0) : (Math.pow(x-this.c1.x,2)+Math.pow(y-this.c1.y,2) > Math.pow(this.c1.r, 2) ? 1 : 0));
-		within = within * (this.c2.dx < 0 ? (Math.pow(x-this.c2.x,2)+Math.pow(y-this.c2.y,2) > Math.pow(this.c2.r, 2) ? 1 : 0) : (Math.pow(x-this.c2.x,2)+Math.pow(y-this.c2.y,2) < Math.pow(this.c2.r, 2) ? 1 : 0));
-		within = within * (y <= this.y + this.h/2) * (y >= this.y - this.h/2);
-		within = within * (x <= this.x + Math.max(this.w/2, this.w/2 + this.c2.dx)) * (x >= this.x - Math.max(this.w/2, this.w/2 - this.c1.dx));
-		return within;
-	};
 	this.initMouseHandles = function() {
 		this.mouseHandles = [];
 		this.mouseHandles.push(new mouseHandle(context, this, {useParentCollision: true}));
@@ -536,30 +528,77 @@ function le(context, props_in) { 						             	// lens element
 		this.mouseHandles[0].visible = false;
 	};
 
-	// initialization
-	this.x = props_in && !(props_in.x === undefined) ? props_in.x : 0;
-	this.y = props_in && !(props_in.y === undefined) ? props_in.y : 0;
-	this.h = props_in && !(props_in.h === undefined) ? props_in.h : 100;
-	this.w = props_in && !(props_in.w === undefined) ? props_in.w : 10;
-	this.c1 = {dx: props_in && !(props_in.c1.dx === undefined) ? props_in.c1.dx : -20};
-	this.c2 = {dx: props_in && !(props_in.c2.dx === undefined) ? props_in.c2.dx : 20};
-	this.refidx = props_in && !(props_in.refidx === undefined) ? props_in.refidx : 2.15;
-	this.mouseHandles = [];
 	this.initMouseHandles();
 }
-function ls(context, om, props_in) { 			     	// light source
+OpticalElement.prototype.update = function () {
+  // update geometry from mouse handle positions
+  this.x = this.mouseHandles[0].x;
+  this.y = this.mouseHandles[0].y;
+  this.w = (this.mouseHandles[1].x-this.mouseHandles[0].x)*2;
+  this.h = (this.mouseHandles[0].y-this.mouseHandles[1].y)*2;
+  this.c1.dx = this.mouseHandles[2].x-2*this.mouseHandles[0].x+this.mouseHandles[1].x;
+  this.mouseHandles[2].y = this.mouseHandles[0].y;
+  this.c2.dx = this.mouseHandles[3].x-this.mouseHandles[1].x;
+  this.mouseHandles[3].y = this.mouseHandles[0].y;
+
+  // update additional circle parameters from 'dx' handle
+  this.updateCircleGeometry();
+}
+OpticalElement.prototype.updateCircleGeometry = function () {
+  this.c1.x  = this.x-this.w/2+this.c1.dx/2-Math.pow(this.h, 2)/this.c1.dx*0.125;
+  this.c1.y  = this.y;
+  this.c1.r  = Math.abs(this.x-this.w/2+this.c1.dx-this.c1.x);
+  this.c1.a1 = (this.c1.dx < 0 ? Math.PI : 0) - Math.atan(-(this.h/2)/((this.x-this.w/2)-this.c1.x));
+  this.c1.a2 = (this.c1.dx < 0 ? Math.PI : 0) - Math.atan((this.h/2)/((this.x-this.w/2)-this.c1.x));
+
+  this.c2.x  = this.x+this.w/2+this.c2.dx/2-Math.pow(this.h, 2)/this.c2.dx*0.125;
+  this.c2.y  = this.y;
+  this.c2.r  = Math.abs(this.x+this.w/2+this.c2.dx-this.c2.x);
+  this.c2.a1 = (this.c2.dx < 0 ? Math.PI : 0) - Math.atan((this.h/2)/((this.x+this.w/2)-this.c2.x));
+  this.c2.a2 = (this.c2.dx < 0 ? Math.PI : 0) - Math.atan(-(this.h/2)/((this.x+this.w/2)-this.c2.x));
+};
+OpticalElement.prototype.draw = function () {
+  this.context.lineWidth=0.5;
+  this.context.fillStyle='rgba(128, 164, 255, 0.6)';
+
+  this.context.beginPath();
+  this.context.arc(this.c2.x, this.c2.y, this.c2.r,
+    this.c2.a1,
+    this.c2.a2,
+    this.c2.dx < 0);
+  this.context.arc(this.c1.x, this.c1.y, this.c1.r,
+    this.c1.a1,
+    this.c1.a2,
+    this.c1.dx > 0);
+  this.context.lineTo(this.x+this.w/2, this.y-this.h/2);
+  this.context.fill();
+}
+OpticalElement.prototype.drawHandles = function() {
+  for (var i = 0; i < this.mouseHandles.length; i++) this.mouseHandles[i].draw();
+};
+OpticalElement.prototype.pointWithin = function(x, y) {
+  var within = 1;
+  within = within * (this.c1.dx < 0 ? (Math.pow(x-this.c1.x,2)+Math.pow(y-this.c1.y,2) < Math.pow(this.c1.r, 2) ? 1 : 0) : (Math.pow(x-this.c1.x,2)+Math.pow(y-this.c1.y,2) > Math.pow(this.c1.r, 2) ? 1 : 0));
+  within = within * (this.c2.dx < 0 ? (Math.pow(x-this.c2.x,2)+Math.pow(y-this.c2.y,2) > Math.pow(this.c2.r, 2) ? 1 : 0) : (Math.pow(x-this.c2.x,2)+Math.pow(y-this.c2.y,2) < Math.pow(this.c2.r, 2) ? 1 : 0));
+  within = within * (y <= this.y + this.h/2) * (y >= this.y - this.h/2);
+  within = within * (x <= this.x + Math.max(this.w/2, this.w/2 + this.c2.dx)) * (x >= this.x - Math.max(this.w/2, this.w/2 - this.c1.dx));
+  return within;
+}
+
+
+function ls(context, om, properties) { 			     	// light source
 	var ctx = context;
 
-	this.type = props_in && !(props_in.type === undefined) ? props_in.type : 'sun';
-	this.spray = props_in && !(props_in.spray === undefined) ? props_in.spray : 0.1;
-	this.w = props_in && !(props_in.w === undefined) ? props_in.w : 200;
-	this.x = props_in && !(props_in.x === undefined) ? props_in.x : 500;
-	this.y = props_in && !(props_in.y === undefined) ? props_in.y : 200;
-	this.r = props_in && !(props_in.r === undefined) ? props_in.r : 10;
-	this.rays = props_in && !(props_in.rays === undefined) ? props_in.rays   : 24;
-	this.raycolor = props_in && !(props_in.raycolor === undefined) ? props_in.raycolor : '';
-	this.ang = props_in && !(props_in.ang === undefined) ? props_in.ang : Math.PI;
-	this.dist = props_in && !(props_in.dist === undefined) ? props_in.dist : null;
+	this.type = properties && !(properties.type === undefined) ? properties.type : 'sun';
+	this.spray = properties && !(properties.spray === undefined) ? properties.spray : 10;
+	this.w = properties && !(properties.w === undefined) ? properties.w : 200;
+	this.x = properties && !(properties.x === undefined) ? properties.x : 500;
+	this.y = properties && !(properties.y === undefined) ? properties.y : 200;
+	this.r = properties && !(properties.r === undefined) ? properties.r : 10;
+	this.rays = properties && !(properties.rays === undefined) ? properties.rays   : 24;
+	this.raycolor = properties && !(properties.raycolor === undefined) ? properties.raycolor : '';
+	this.ang = properties && !(properties.ang === undefined) ? properties.ang : Math.PI;
+	this.dist = properties && !(properties.dist === undefined) ? properties.dist : null;
 	this.mouseHandles = null;
 
 	this.update = function() {
@@ -591,10 +630,10 @@ function ls(context, om, props_in) { 			     	// light source
 	this.draw = function() {
     switch(this.type) {
 		  case 'sun':
-			  this.drawRaysSun(om.getType('le'));
+			  this.drawRaysSun(om.getType('OpticalElement'));
         break;
 		  case 'spot':
-			  this.drawRaysSpot(om.getType('le'));
+			  this.drawRaysSpot(om.getType('OpticalElement'));
         break;
 		}
 
