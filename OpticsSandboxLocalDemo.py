@@ -16,7 +16,7 @@ if sys.version_info >= (3,0):
         print("Attempting to serve at port", PORT)
         try:
             httpd = socketserver.TCPServer(("", PORT), Handler)
-            webbrowser.open_new_tab("http://localhost:"+str(PORT)+"/OpticsSandboxExample.html")
+            webbrowser.open_new_tab("http://localhost:"+str(PORT))
             httpd.serve_forever()
             break
         except SocketServer.socket.error as e:
@@ -41,7 +41,7 @@ else:
         print("Attempting to serve at port", PORT)
         try:
             httpd = SocketServer.TCPServer(("", PORT), Handler)
-            webbrowser.open_new_tab("http://localhost:"+str(PORT)+"/OpticsSandboxExample.html")
+            webbrowser.open_new_tab("http://localhost:"+str(PORT))
             httpd.serve_forever()
             break
         except SocketServer.socket.error as e:
