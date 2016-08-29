@@ -16,7 +16,7 @@ Include necessary scripts and style files in the .html document.
 
 ### Running Locally
 1. Clone the repository
-2. Open a terminal and navigate to the cloned directory.
+2. Open a terminal and navigate to the cloned directory
 3. Run ```python OpticsSandboxLocalDemo.py```
 
 ### Development Notes
