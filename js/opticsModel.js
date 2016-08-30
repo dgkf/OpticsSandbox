@@ -10,7 +10,7 @@ function opticsModel(canvas, context) {
 
 	this.init = function() {
 		om.add(new OpticalElement(context, {x: 0, y: 0, h: 200, w: 5, c1:{dx:-30}, c2:{dx:30} }));
-		om.add(new ls(context, om, {x: 250, y: 0, raycolor: 'rgba(236, 236, 64, 0.8)', rays: 36, type:'spot'}));
+		om.add(new LightSource(context, om, {x: 250, y: 0, raycolor: 'rgba(236, 236, 64, 0.8)', rays: 36, type:'spot'}));
 		//om.add(new img(ctx, om));
 		//om.add(new img(ctx, om, {src: 'assets/opera.gif'}));
 		//om.add(new le(ctx, {x: 100, y: 300, h: 200, w: 10, c1:{dx:-10}, c2:{dx:10}}));
@@ -591,9 +591,9 @@ OpticalElement.prototype.pointWithin = function(x, y) {
   return within;
 };
 
-
-function ls(context, om, properties) { 			     	// light source
-	var ctx = context;
+function LightSource(context, objectManager, properties) {
+	this.context = context;
+  this.objectManager = objectManager;
 
 	this.type = properties && properties.type !== undefined ? properties.type : 'sun';
 	this.spray = properties && properties.spray !== undefined ? properties.spray : 3.0;
@@ -607,198 +607,197 @@ function ls(context, om, properties) { 			     	// light source
 	this.dist = properties && properties.dist !== undefined ? properties.dist : null;
 	this.mouseHandles = null;
 
-	this.update = function() {
-		this.x = this.mouseHandles[0].x;
-		this.y = this.mouseHandles[0].y;
-
-		this.ang = (this.mouseHandles[1].x < this.mouseHandles[0].x ? Math.PI : 0) + Math.atan((this.mouseHandles[1].y-this.mouseHandles[0].y)/(this.mouseHandles[1].x-this.mouseHandles[0].x));
-		this.spray = Math.min(1, Math.max(-0.2, (Math.sqrt(Math.pow(this.mouseHandles[1].x-this.mouseHandles[0].x,2)+Math.pow(this.mouseHandles[1].y-this.mouseHandles[0].y,2))-100)*0.005));
-		this.w   = Math.sqrt(Math.pow(this.mouseHandles[2].x-this.mouseHandles[0].x,2)+Math.pow(this.mouseHandles[2].y-this.mouseHandles[0].y,2))*2;
-
-		this.mouseHandles[0].rotateTo(this.ang, this.mouseHandles[0].x, this.mouseHandles[0].y, false);
-		//this.mouseHandles[2].fixAng = this.ang + Math.PI*0.5;
-	};
-	this.initMouseHandles = function() {
+  this.initMouseHandles = function() {
 		this.mouseHandles = [];
-		this.mouseHandles.push(new mouseHandle(ctx,this,{x:this.x, y:this.y, r:this.r, visible:false, useParentCollision:true})); // 0 - origin
-		this.mouseHandles.push(new mouseHandle(ctx,this,{x:this.x+Math.cos(this.ang)*200*this.spray/Math.PI, y:this.y+Math.sin(this.ang)*200*this.spray/Math.PI})); // 1 - angle & spray
-		this.mouseHandles.push(new mouseHandle(ctx,this,{x:this.x-Math.sin(this.ang)*this.w/2, y:this.y-Math.sin(this.ang)*this.w/2})); // 2 - width
+		this.mouseHandles.push(new mouseHandle(context,this,{x:this.x, y:this.y, r:this.r, visible:false, useParentCollision:true})); // 0 - origin
+		this.mouseHandles.push(new mouseHandle(context,this,{x:this.x+Math.cos(this.ang)*200*this.spray/Math.PI, y:this.y+Math.sin(this.ang)*200*this.spray/Math.PI})); // 1 - angle & spray
+		this.mouseHandles.push(new mouseHandle(context,this,{x:this.x-Math.sin(this.ang)*this.w/2, y:this.y-Math.sin(this.ang)*this.w/2})); // 2 - width
 
 		this.mouseHandles[0].addChild(this.mouseHandles[1]);
 		this.mouseHandles[0].addChild(this.mouseHandles[2]);
 	};
-	this.pointWithin = function(x, y) {
-		return Math.pow(x-this.x,2)+Math.pow(y-this.y,2)<=Math.pow(this.r,2);
-	};
-	this.drawHandles = function() {
-		for (var i = 0; i < this.mouseHandles.length; i++) this.mouseHandles[i].draw();
-	};
-	this.draw = function() {
-    switch(this.type) {
-		  case 'sun':
-			  this.drawRaysSun(om.getType('OpticalElement'));
-        break;
-		  case 'spot':
-			  this.drawRaysSpot(om.getType('OpticalElement'));
-        break;
-		}
-
-		ctx.lineWidth = 0.5;
-		ctx.fillStyle = (this.raycolor === '' ? '#FFFFAA' : this.raycolor);
-
-		ctx.beginPath();
-		ctx.moveTo(this.x+this.r, this.y);
-    ctx.fillStyle = om.clearColor;
-    ctx.arc(this.x, this.y, this.r, 0, 2*Math.PI, false);
-    ctx.fill();
-    ctx.fillStyle = (this.raycolor === '' ? '#FFFFAA' : this.raycolor);
-		ctx.arc(this.x, this.y, this.r, 0, 2*Math.PI, false);
-		ctx.fill();
-	};
-	this.drawRaySeg = function(les, ori, ang, sens) {
-		var ori_new = ori;
-		var ang_new = ang;
-		var p_int = null; var t_int = null; var nr_int = null;
-
-		ctx.beginPath();
-		ctx.moveTo(ori.x, ori.y);
-
-		// determine closest intersection with lens and calculate point of intersection, tangent, direction and refractive index
-		var minlen = Infinity;
-    var d = 0; var ap1 = 0; var ap2 = 0; var amax = 0; var amin = 0; var i; var int_le; var p;
-		for (i = 0, int_le = 0; i < (typeof(les) == 'undefined' ? 0 : les.length); i++, int_le = 0) {
-			//top (line)
-			p = intersectionLineLine(les[i].x-les[i].w/2, les[i].y-les[i].h/2, les[i].x+les[i].w/2, les[i].y-les[i].h/2, ori.x, ori.y, ori.x+Math.cos(ang), ori.y+Math.sin(ang));
-			if (p !== null && p.x >= les[i].x-les[i].w/2 && p.x <= les[i].x+les[i].w/2 && (p.x == ori.x || Math.sign(p.x-ori.x) == Math.sign(Math.cos(ang))) && (p.y == ori.y || Math.sign(p.y-ori.y) == Math.sign(Math.sin(ang)))) {
-        d = (p.x-ori.x)*Math.cos(ang)+(p.y-ori.y)*Math.sin(ang);
-				if (d >= sens && d < minlen) { int_le = 1; minlen = d; p_int = {x:p.x, y:p.y}; t_int = p.t1; }
-			}
-
-			//bottom (line)
-			p = intersectionLineLine(les[i].x-les[i].w/2, les[i].y+les[i].h/2, les[i].x+les[i].w/2, les[i].y+les[i].h/2, ori.x, ori.y, ori.x+Math.cos(ang), ori.y+Math.sin(ang));
-			if (p !== null && p.x >= les[i].x-les[i].w/2 && p.x <= les[i].x+les[i].w/2 && (p.x == ori.x || Math.sign(p.x-ori.x) == Math.sign(Math.cos(ang))) && (p.y == ori.y ||  Math.sign(p.y-ori.y) == Math.sign(Math.sin(ang)))) {
-        d = (p.x-ori.x)*Math.cos(ang)+(p.y-ori.y)*Math.sin(ang);
-				if (d >= sens && d < minlen) { int_le = 1; minlen = d; p_int = {x:p.x, y:p.y}; t_int = p.t1; }
-			}
-
-			// left arc (circle)
-			p = intersectionLineCircle(ori.x, ori.y, ori.x+Math.cos(ang), ori.y+Math.sin(ang), les[i].c1.x, les[i].c1.y, les[i].c1.r);
-			if (p !== null) {
-				ap1 = Math.acos((p.p1.x-les[i].c1.x)/Math.sqrt(Math.pow(p.p1.x-les[i].c1.x, 2)+Math.pow(p.p1.y-les[i].c1.y, 2)));
-				ap2 = Math.acos((p.p2.x-les[i].c1.x)/Math.sqrt(Math.pow(p.p2.x-les[i].c1.x, 2)+Math.pow(p.p2.y-les[i].c1.y, 2)));
-				amax = les[i].c1.dx > 0 ? les[i].c1.a1 : les[i].c1.a2;
-				amin = les[i].c1.dx > 0 ? les[i].c1.a2 : les[i].c1.a1;
-				if (angleBetween(ap1, amin, amax)) {
-					d = (p.p1.x-ori.x)*Math.cos(ang)+(p.p1.y-ori.y)*Math.sin(ang);
-					if (d >= sens && d < minlen) { int_le = 1; minlen = d; p_int = {x:p.p1.x, y:p.p1.y}; t_int = p.p1.t; }
-				} else if (angleBetween(ap2, amin, amax)) {
-					d = (p.p2.x-ori.x)*Math.cos(ang)+(p.p2.y-ori.y)*Math.sin(ang);
-					if (d >= sens && d < minlen) { int_le = 1; minlen = d; p_int = {x:p.p2.x, y:p.p2.y}; t_int = p.p2.t; }
-				}
-			}
-
-			// right arc (circle)
-			p = intersectionLineCircle(ori.x, ori.y, ori.x+Math.cos(ang), ori.y+Math.sin(ang), les[i].c2.x, les[i].c2.y, les[i].c2.r);
-			if (p !== null) {
-				ap1 = Math.acos((p.p1.x-les[i].c2.x)/Math.sqrt(Math.pow(p.p1.x-les[i].c2.x, 2)+Math.pow(p.p1.y-les[i].c2.y, 2)));
-				ap2 = Math.acos((p.p2.x-les[i].c2.x)/Math.sqrt(Math.pow(p.p2.x-les[i].c2.x, 2)+Math.pow(p.p2.y-les[i].c2.y, 2)));
-				amax = les[i].c2.dx < 0 ? les[i].c2.a1 : les[i].c2.a2;
-				amin = les[i].c2.dx < 0 ? les[i].c2.a2 : les[i].c2.a1;
-				if (angleBetween(ap1, amin, amax)) {
-					d = (p.p1.x-ori.x)*Math.cos(ang)+(p.p1.y-ori.y)*Math.sin(ang);
-					if (d >= sens && d < minlen) { int_le = 1; minlen = d; p_int = {x:p.p1.x, y:p.p1.y}; t_int = p.p1.t; }
-				} else if (angleBetween(ap2, amin, amax)) {
-					d = (p.p2.x-ori.x)*Math.cos(ang)+(p.p2.y-ori.y)*Math.sin(ang);
-					if (d >= sens && d < minlen) { int_le = 1; minlen = d; p_int = {x:p.p2.x, y:p.p2.y}; t_int = p.p2.t; }
-				}
-			}
-
-			// update the refractive index ratio if this element was intersected with a new closest intersection
-			if (int_le) {
-        nr_int = Math.pow(les[i].refidx / 1.0, les[i].pointWithin(p_int.x + Math.cos(ang) * sens, p_int.y + Math.sin(ang) * sens) ? -1 : 1);
-      }
-		}
-
-		// draw segment
-		ctx.lineTo(ori.x+Math.cos(ang)*(minlen == Infinity ? 10000 : minlen), ori.y+Math.sin(ang)*(minlen == Infinity ? 10000 : minlen));
-		ctx.stroke();
-
-		// turn red and draw next segment after passing through something
-		if (minlen != Infinity) {
-			// calculate outgoing angle after contact
-			ori_new = p_int;
-			var ang_incoming = Math.PI * 0.5 - (ang - t_int + Math.PI * 0.5) % Math.PI;
-			var asin_in = nr_int * Math.sin(ang_incoming);
-			if (Math.abs(asin_in) > 1) {
-        // ang_new = (ang + Math.PI) + 2 * ang_incoming; // used for internal reflection of rays
-				return null;
-			} else {
-				var ang_outgoing = Math.asin(asin_in);
-				ang_new = ang + ang_incoming - ang_outgoing;
-			}
-
-			// Some troubleshooting geometry
-			if (0) {
-				ctx.beginPath();
-				ctx.strokeStyle = '#BBBBBB';
-				ctx.moveTo(p_int.x - Math.cos(t_int) * 40, p_int.y - Math.sin(t_int) * 40);
-				ctx.lineTo(p_int.x + Math.cos(t_int) * 40, p_int.y + Math.sin(t_int) * 40);
-				ctx.stroke();
-
-				/*
-				// Draw surface tangent angle
-				ctx.beginPath();
-				ctx.strokeStyle = '#FF4444';
-				var ang_base = Math.min(0, t_int);
-				var ang_arc = Math.max(0, t_int);
-				ctx.arc(p_int.x, p_int.y, 20, ang_base, ang_arc, false);
-				ctx.stroke();
-
-				// Draw incoming ray angle
-				ctx.beginPath();
-				ctx.strokeStyle = '#44FF44';
-				var ang_base = 0;
-				var ang_arc = Math.abs(Math.PI * 0.5 - ((ang + Math.PI * 0.5) % Math.PI));
-				ctx.arc(p_int.x, p_int.y, 18, ang_base, ang_arc, false);
-				ctx.stroke();
-				*/
-
-				// Draw incoming ray contact angle
-				/*
-				ctx.beginPath()
-				ctx.strokeStyle = '#4444FF';
-				var ang_base = 0;
-				var ang_arc = Math.PI * 0.5 - (ang - t_int + Math.PI * 0.5) % Math.PI;
-				ctx.arc(p_int.x, p_int.y, 15, ang_base, ang_arc, false);
-				ctx.stroke();
-				*/
-			}
-
-			this.drawRaySeg(les, ori_new, ang_new, sens);
-		}
-	};
-	this.drawRaysSun = function(les) {
-		for (var i = 0; i < this.rays; i++) {
-			ctx.lineWidth = 0.5;
-			ctx.fillStyle = 'none';
-			ctx.strokeStyle = (this.raycolor === '' ? HSVtoHEX(i/this.rays, 0.3, 1.0) : this.raycolor);
-			this.drawRaySeg(les, {x:this.x, y:this.y}, i/this.rays*2*Math.PI, 0.0001);
-		}
-	};
-	this.drawRaysSpot = function(les) {
-		for (var i = 0; i < this.rays; i++) {
-			ctx.lineWidth = 0.5;
-			ctx.fillStyle = 'none';
-			ctx.strokeStyle = (this.raycolor === '' ? HSVtoHEX(i/this.rays, 0.3, 1.0) : this.raycolor);
-			this.drawRaySeg(les,
-                      {x:this.x+Math.sin(this.ang)*this.w*(i-(this.rays-1)*0.5)/this.rays,
-                       y:this.y-Math.cos(this.ang)*this.w*(i-(this.rays-1)*0.5)/this.rays},
-                      this.ang+this.spray*Math.PI*((this.rays-1)*0.5-i)/this.rays, 0.0001);
-		}
-	};
 
 	this.initMouseHandles();
 }
+LightSource.prototype.update = function() {
+  this.x = this.mouseHandles[0].x;
+  this.y = this.mouseHandles[0].y;
+  this.ang = (this.mouseHandles[1].x < this.mouseHandles[0].x ? Math.PI : 0) + Math.atan((this.mouseHandles[1].y-this.mouseHandles[0].y)/(this.mouseHandles[1].x-this.mouseHandles[0].x));
+  this.spray = Math.min(1, Math.max(-0.2, (Math.sqrt(Math.pow(this.mouseHandles[1].x-this.mouseHandles[0].x,2)+Math.pow(this.mouseHandles[1].y-this.mouseHandles[0].y,2))-100)*0.005));
+  this.w   = Math.sqrt(Math.pow(this.mouseHandles[2].x-this.mouseHandles[0].x,2)+Math.pow(this.mouseHandles[2].y-this.mouseHandles[0].y,2))*2;
+  this.mouseHandles[0].rotateTo(this.ang, this.mouseHandles[0].x, this.mouseHandles[0].y, false);
+};
+LightSource.prototype.drawRaySeg = function(OpticalElements, origin, angle, sensitivity, allowInternalRefraction) {
+  var origin_new = origin;
+  var angle_new = angle;
+  var p_int = null; var t_int = null; var nr_int = null;
+
+  this.context.beginPath();
+  this.context.moveTo(origin.x, origin.y);
+
+  // determine closest intersection with lens and calculate point of intersection, tangleent, direction and refractive index
+  var minlen = Infinity;
+  var d = 0; var ap1 = 0; var ap2 = 0; var amax = 0; var amin = 0; var i; var intElem; var p;
+  for (i = 0, intElem = false; i < (typeof(OpticalElements) === undefined ? 0 : OpticalElements.length); i++, intElem = true) {
+    //top (line)
+    p = intersectionLineLine(OpticalElements[i].x-OpticalElements[i].w/2, OpticalElements[i].y-OpticalElements[i].h/2, OpticalElements[i].x+OpticalElements[i].w/2, OpticalElements[i].y-OpticalElements[i].h/2, origin.x, origin.y, origin.x+Math.cos(angle), origin.y+Math.sin(angle));
+    if (p !== null && p.x >= OpticalElements[i].x-OpticalElements[i].w/2 && p.x <= OpticalElements[i].x+OpticalElements[i].w/2 && (p.x == origin.x || Math.sign(p.x-origin.x) == Math.sign(Math.cos(angle))) && (p.y == origin.y || Math.sign(p.y-origin.y) == Math.sign(Math.sin(angle)))) {
+      d = (p.x-origin.x)*Math.cos(angle)+(p.y-origin.y)*Math.sin(angle);
+      if (d >= sensitivity && d < minlen) { intElem = true; minlen = d; p_int = {x:p.x, y:p.y}; t_int = p.t1; }
+    }
+
+    //bottom (line)
+    p = intersectionLineLine(OpticalElements[i].x-OpticalElements[i].w/2, OpticalElements[i].y+OpticalElements[i].h/2, OpticalElements[i].x+OpticalElements[i].w/2, OpticalElements[i].y+OpticalElements[i].h/2, origin.x, origin.y, origin.x+Math.cos(angle), origin.y+Math.sin(angle));
+    if (p !== null && p.x >= OpticalElements[i].x-OpticalElements[i].w/2 && p.x <= OpticalElements[i].x+OpticalElements[i].w/2 && (p.x == origin.x || Math.sign(p.x-origin.x) == Math.sign(Math.cos(angle))) && (p.y == origin.y ||  Math.sign(p.y-origin.y) == Math.sign(Math.sin(angle)))) {
+      d = (p.x-origin.x)*Math.cos(angle)+(p.y-origin.y)*Math.sin(angle);
+      if (d >= sensitivity && d < minlen) { intElem = true; minlen = d; p_int = {x:p.x, y:p.y}; t_int = p.t1; }
+    }
+
+    // left arc (circle)
+    p = intersectionLineCircle(origin.x, origin.y, origin.x+Math.cos(angle), origin.y+Math.sin(angle), OpticalElements[i].c1.x, OpticalElements[i].c1.y, OpticalElements[i].c1.r);
+    if (p !== null) {
+      ap1 = Math.acos((p.p1.x-OpticalElements[i].c1.x)/Math.sqrt(Math.pow(p.p1.x-OpticalElements[i].c1.x, 2)+Math.pow(p.p1.y-OpticalElements[i].c1.y, 2)));
+      ap2 = Math.acos((p.p2.x-OpticalElements[i].c1.x)/Math.sqrt(Math.pow(p.p2.x-OpticalElements[i].c1.x, 2)+Math.pow(p.p2.y-OpticalElements[i].c1.y, 2)));
+      amax = OpticalElements[i].c1.dx > 0 ? OpticalElements[i].c1.a1 : OpticalElements[i].c1.a2;
+      amin = OpticalElements[i].c1.dx > 0 ? OpticalElements[i].c1.a2 : OpticalElements[i].c1.a1;
+      if (angleBetween(ap1, amin, amax)) {
+        d = (p.p1.x-origin.x)*Math.cos(angle)+(p.p1.y-origin.y)*Math.sin(angle);
+        if (d >= sensitivity && d < minlen) { intElem = true; minlen = d; p_int = {x:p.p1.x, y:p.p1.y}; t_int = p.p1.t; }
+      } else if (angleBetween(ap2, amin, amax)) {
+        d = (p.p2.x-origin.x)*Math.cos(angle)+(p.p2.y-origin.y)*Math.sin(angle);
+        if (d >= sensitivity && d < minlen) { intElem = true; minlen = d; p_int = {x:p.p2.x, y:p.p2.y}; t_int = p.p2.t; }
+      }
+    }
+
+    // right arc (circle)
+    p = intersectionLineCircle(origin.x, origin.y, origin.x+Math.cos(angle), origin.y+Math.sin(angle), OpticalElements[i].c2.x, OpticalElements[i].c2.y, OpticalElements[i].c2.r);
+    if (p !== null) {
+      ap1 = Math.acos((p.p1.x-OpticalElements[i].c2.x)/Math.sqrt(Math.pow(p.p1.x-OpticalElements[i].c2.x, 2)+Math.pow(p.p1.y-OpticalElements[i].c2.y, 2)));
+      ap2 = Math.acos((p.p2.x-OpticalElements[i].c2.x)/Math.sqrt(Math.pow(p.p2.x-OpticalElements[i].c2.x, 2)+Math.pow(p.p2.y-OpticalElements[i].c2.y, 2)));
+      amax = OpticalElements[i].c2.dx < 0 ? OpticalElements[i].c2.a1 : OpticalElements[i].c2.a2;
+      amin = OpticalElements[i].c2.dx < 0 ? OpticalElements[i].c2.a2 : OpticalElements[i].c2.a1;
+      if (angleBetween(ap1, amin, amax)) {
+        d = (p.p1.x-origin.x)*Math.cos(angle)+(p.p1.y-origin.y)*Math.sin(angle);
+        if (d >= sensitivity && d < minlen) { intElem = true; minlen = d; p_int = {x:p.p1.x, y:p.p1.y}; t_int = p.p1.t; }
+      } else if (angleBetween(ap2, amin, amax)) {
+        d = (p.p2.x-origin.x)*Math.cos(angle)+(p.p2.y-origin.y)*Math.sin(angle);
+        if (d >= sensitivity && d < minlen) { intElem = true; minlen = d; p_int = {x:p.p2.x, y:p.p2.y}; t_int = p.p2.t; }
+      }
+    }
+
+    // update the refractive index ratio if this element was intersected with a new closest intersection
+    if (intElem) {
+      nr_int = Math.pow(OpticalElements[i].refidx / 1.0, OpticalElements[i].pointWithin(p_int.x + Math.cos(angle) * sensitivity, p_int.y + Math.sin(angle) * sensitivity) ? -1 : 1);
+    }
+  }
+
+  // draw segment
+  this.context.lineTo(origin.x+Math.cos(angle)*(minlen == Infinity ? 10000 : minlen), origin.y+Math.sin(angle)*(minlen == Infinity ? 10000 : minlen));
+  this.context.stroke();
+
+  // turn red and draw next segment after passing through something
+  if (minlen != Infinity) {
+    // calculate outgoing anglele after contact
+    origin_new = p_int;
+    var angle_incoming = Math.PI * 0.5 - (angle - t_int + Math.PI * 0.5) % Math.PI;
+    var asin_in = nr_int * Math.sin(angle_incoming);
+    if (Math.abs(asin_in) > 1) {
+      if (allowInternalRefraction)
+        angle_new = (angle + Math.PI) + 2 * angle_incoming; // used for internal reflection of rays
+      else
+        return null;
+    } else {
+      var angle_outgoing = Math.asin(asin_in);
+      angle_new = angle + angle_incoming - angle_outgoing;
+    }
+
+    // Some troubOpticalElementshooting geometry
+    if (0) {
+      this.context.beginPath();
+      this.context.strokeStyle = '#BBBBBB';
+      this.context.moveTo(p_int.x - Math.cos(t_int) * 40, p_int.y - Math.sin(t_int) * 40);
+      this.context.lineTo(p_int.x + Math.cos(t_int) * 40, p_int.y + Math.sin(t_int) * 40);
+      this.context.stroke();
+
+      /*
+      // Draw surface tangleent anglele
+      ctx.beginPath();
+      ctx.strokeStyle = '#FF4444';
+      var angle_base = Math.min(0, t_int);
+      var angle_arc = Math.max(0, t_int);
+      ctx.arc(p_int.x, p_int.y, 20, angle_base, angle_arc, false);
+      ctx.stroke();
+
+      // Draw incoming ray anglele
+      ctx.beginPath();
+      ctx.strokeStyle = '#44FF44';
+      var angle_base = 0;
+      var angle_arc = Math.abs(Math.PI * 0.5 - ((angle + Math.PI * 0.5) % Math.PI));
+      ctx.arc(p_int.x, p_int.y, 18, angle_base, angle_arc, false);
+      ctx.stroke();
+      */
+
+      // Draw incoming ray contact anglele
+      /*
+      ctx.beginPath()
+      ctx.strokeStyle = '#4444FF';
+      var angle_base = 0;
+      var angle_arc = Math.PI * 0.5 - (angle - t_int + Math.PI * 0.5) % Math.PI;
+      ctx.arc(p_int.x, p_int.y, 15, angle_base, angle_arc, false);
+      ctx.stroke();
+      */
+    }
+    this.drawRaySeg(OpticalElements, origin_new, angle_new, sensitivity, allowInternalRefraction);
+  }
+};
+LightSource.prototype.pointWithin = function(x, y) {
+   return Math.pow(x-this.x,2)+Math.pow(y-this.y,2)<=Math.pow(this.r,2);
+};
+LightSource.prototype.drawHandles = function() {
+  for (var i = 0; i < this.mouseHandles.length; i++) this.mouseHandles[i].draw();
+};
+LightSource.prototype.draw = function() {
+  switch(this.type) {
+    case 'sun':
+      this.drawRaysSun(this.objectManager.getType('OpticalElement'));
+      break;
+    case 'spot':
+      this.drawRaysSpot(this.objectManager.getType('OpticalElement'));
+      break;
+  }
+
+  this.context.lineWidth = 0.5;
+  this.context.fillStyle = (this.raycolor === '' ? '#FFFFAA' : this.raycolor);
+
+  this.context.beginPath();
+  this.context.moveTo(this.x+this.r, this.y);
+  this.context.fillStyle = objectManager.clearColor;
+  this.context.arc(this.x, this.y, this.r, 0, 2*Math.PI, false);
+  this.context.fill();
+  this.context.fillStyle = (this.raycolor === '' ? '#FFFFAA' : this.raycolor);
+  this.context.arc(this.x, this.y, this.r, 0, 2*Math.PI, false);
+  this.context.fill();
+};
+LightSource.prototype.drawRaysSun = function(OpticalElements) {
+  for (var i = 0; i < this.rays; i++) {
+    this.context.lineWidth = 0.5;
+    this.context.fillStyle = 'none';
+    this.context.strokeStyle = (this.raycolor === '' ? HSVtoHEX(i/this.rays, 0.3, 1.0) : this.raycolor);
+    this.drawRaySeg(OpticalElements, {x:this.x, y:this.y}, i/this.rays*2*Math.PI, 0.0001, true);
+  }
+};
+LightSource.prototype.drawRaysSpot = function(OpticalElements) {
+  for (var i = 0; i < this.rays; i++) {
+    this.context.lineWidth = 0.5;
+    this.context.fillStyle = 'none';
+    this.context.strokeStyle = (this.raycolor === '' ? HSVtoHEX(i/this.rays, 0.3, 1.0) : this.raycolor);
+    this.drawRaySeg(OpticalElements,
+                    {x:this.x+Math.sin(this.ang)*this.w*(i-(this.rays-1)*0.5)/this.rays,
+                     y:this.y-Math.cos(this.ang)*this.w*(i-(this.rays-1)*0.5)/this.rays},
+                    this.ang+this.spray*Math.PI*((this.rays-1)*0.5-i)/this.rays, 0.0001, true);
+  }
+};
+
 function img(context, objectManager, properties) {			     	// image light source
 	var om = objectManager;
 	var img = new Image();
@@ -859,8 +858,8 @@ function intersectionLineCircle(x1, y1, x2, y2, cx, cy, cr) {
 		} };
 }
 function angleBetween(a, btw_min, btw_max) {
-	return (btw_max > btw_min ? a >= btw_min && a <= btw_max : a >= btw_max && a <= btw_min);
-}
+  return (btw_max > btw_min ? a >= btw_min && a <= btw_max : a >= btw_max && a <= btw_min);
+};
 
 // COLOR HELPER FUNCTIONS
 function HSVtoHEX(h, s, v) {
