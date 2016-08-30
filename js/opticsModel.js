@@ -388,6 +388,19 @@ function mouseHandle(in_context, in_parent, properties) { 	// mouse handle
 		this.children.push(mouseHandleChild);
 	};
 }
+
+function mouseHandle2(context, parent, properties) {
+  this.context = context;
+  this.parentObject = parent;
+
+  this.x = properties && properties.x !== undefined ? properties.x : 0;
+  this.y = properties && properties.y !== undefined ? properties.y : 0;
+
+  this.active = properties && properties.angle !== undefined ? properties.angle : 0;
+  this.visible = properties && properties.visible !== undefined ? properties.visible : 0;
+  this.useObjectCollision = properties && properties.useObjectCollision !== undefined ? properties.useObjectCollision : false;
+}
+
 function Viewport(context, properties) {
   this.x = properties && properties.x !== undefined ? properties.x : context.canvas.width * 0.5;
   this.y = properties && properties.y !== undefined ? properties.y : context.canvas.height * 0.5;
@@ -441,7 +454,6 @@ Viewport.prototype.updateTransformation = function(context) {
   this.transform.translate(-context.canvas.width*0.5, -context.canvas.height*0.5);
   this.transform.translate(this.x, this.y);
 };
-
 function grid(context, properties) {
   this.majorIncrement = 250;
   this.minorIncrement = 50;
@@ -501,7 +513,6 @@ function grid(context, properties) {
     context.stroke();
   };
 }
-
 function OpticalElement(context, properties) {
   // initialization
   this.context = context;
@@ -509,8 +520,14 @@ function OpticalElement(context, properties) {
 	this.y = properties && properties.y !== undefined ? properties.y : 0;
 	this.h = properties && properties.h !== undefined ? properties.h : 100;
 	this.w = properties && properties.w !== undefined ? properties.w : 10;
+  // offset of left edge of the lens [(-) is convex, (+) is concave]
 	this.c1 = {dx: properties && properties.c1.dx !== undefined ? properties.c1.dx : -20};
+  this.c1.min = function() { return -this.h*0.5; };
+  this.c1.max = function() { return Math.min(this.h*0.5, this.w+this.c2); };
+  // offset of right edge of the lens [(-) is concave, (+) is convex]
 	this.c2 = {dx: properties && properties.c2.dx !== undefined ? properties.c2.dx : 20};
+  this.c2.min = function() { return Math.max(-this.h*0.5, -this.w+this.c1); };
+  this.c2.max = function() { return this.h*0.5; };
 	this.refidx = properties && properties.refidx !== undefined ? properties.refidx : 2.15;
 	this.mouseHandles = [];
 
@@ -590,7 +607,6 @@ OpticalElement.prototype.pointWithin = function(x, y) {
   within = within * (x <= this.x + Math.max(this.w/2, this.w/2 + this.c2.dx)) * (x >= this.x - Math.max(this.w/2, this.w/2 - this.c1.dx));
   return within;
 };
-
 function LightSource(context, objectManager, properties) {
 	this.context = context;
   this.objectManager = objectManager;
