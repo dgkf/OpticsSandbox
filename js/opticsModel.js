@@ -9,7 +9,7 @@ function opticsModel(canvas, context) {
 	this.fps = 60;
 
 	this.init = function() {
-		om.add(new OpticalElement(context, {x: 0, y: 0, h: 200, w: 5, c1:{dx:-30}, c2:{dx:30} }));
+		om.add(new OpticalElement2(context, {x: 0, y: 0, h: 200, w: 5, c1:{dx:-30}, c2:{dx:30} }));
 		om.add(new LightSource(context, om, {x: 250, y: 0, raycolor: 'rgba(236, 236, 64, 0.8)', rays: 36, type:'spot'}));
 		//om.add(new img(ctx, om));
 		//om.add(new img(ctx, om, {src: 'assets/opera.gif'}));
@@ -192,13 +192,14 @@ function mouseHandler(context, om, vp) {				    // mouse manager
 
         // selection of a new object
         if (!object_interactions_handled)
-      		for (var obj_type in om.objs)
-      			for (var obj_idx = 0; obj_idx < om.objs[obj_type].length; obj_idx++)
+      		for (var obj_type = 0; obj_type < om.objs.length; obj_type++)
+      			for (var obj_idx = 0; obj_idx < om.objs[obj_type].length; obj_idx++) {
       				if (!!om.objs[obj_type][obj_idx].pointWithin &&
                   om.objs[obj_type][obj_idx].pointWithin(world_point[0], world_point[1])) {
       					setSelection(om.objs[obj_type][obj_idx].mouseHandles[0]);
                 object_interactions_handled = true;
       				}
+            }
         break;
       case 1:
         // upkeep
@@ -389,17 +390,181 @@ function mouseHandle(in_context, in_parent, properties) { 	// mouse handle
 	};
 }
 
+function Point2D(x, y) {
+  this.x = x;
+  this.y = y;
+}
+Point2D.prototype.toVector2D = function() {
+  return new Vector2D(this.x, this.y);
+};
+Point2D.prototype.plus = function(other_point2D) {
+  this.x += other_point2D.x;
+  this.y += other_point2D.y;
+  return this;
+};
+Point2D.prototype.minux = function(other_point2D) {
+  this.x -= other_point2D.x;
+  this.y -= other_point2D.y;
+  return this;
+};
+Point2D.prototype.distanceTo = function(other_point2D) {
+  return Math.sqrt(Math.pow(this.x-other_point2D.x, 2.0)+Math.pow(this.y-other_point2D.y, 2.0));
+}
+Point2D.prototype.applyConstraint = function(constraint) {
+  return constraint.applyTo(this)
+};
+
+function Vector2D(x, y) {
+  if (y === undefined) {
+    this.x = x.x !== undefined ? x.x : x;
+    this.y = x.y !== undefined ? x.y : 0;
+  } else {
+    this.x = x !== undefined ? x : 0;
+    this.y = y !== undefined ? y : 0;
+  }
+}
+Vector2D.prototype.fromPoint = function(point) {
+  this.x = point.x;
+  this.y = point.y;
+};
+Vector2D.prototype.mag = function() {
+  return this.dot(this);
+};
+Vector2D.prototype.negate = function() {
+  this.x *= -1.0;
+  this.y *= -1.0;
+  return this;
+}
+Vector2D.prototype.normalize = function() {
+  var mag = this.mag();
+  this.x *= mag;
+  this.y *= mag;
+  return this;
+};
+Vector2D.prototype.times = function(scalar) {
+  this.x *= scalar;
+  this.y *= scalar;
+  return this;
+};
+Vector2D.prototype.plus = function(other_Vector2D) {
+  this.x += other_Vector2D.x;
+  this.y += other_Vector2D.y;
+  return this;
+};
+Vector2D.prototype.minus = function(other_Vector2D) {
+  this.x -= other_Vector2D.x;
+  this.y -= other_Vector2D.y;
+  return this;
+};
+Vector2D.prototype.dot = function(other_Vector2D) {
+  return this.x * other_Vector2D.x + this.y * other_Vector2D.y;
+};
+Vector2D.prototype.cross = function(other_Vector2D) {
+  return this.x * other_Vector2D.y - this.y * other_Vector2D.x;
+};
+Vector2D.prototype.projectAlong = function(other_Vector2D) {
+  return other_Vector2D.times(this.dot(other_Vector2D.times(1/other_Vector2D.mag())));
+};
+Vector2D.prototype.projectAlongUnitVector = function(other_unit_Vector2D) {
+  return other_Vector2D.times(this.dot(other_Vector2D));
+};
+
+function Ray2D(point2D, vector2D) {
+  this.point = point2D;
+  this.vector = vector2D;
+}
+Ray2D.prototype.getAngle = function() {
+  return Math.atan(this.vector.y/this.vector.x) + (this.vector.x > 0 ? 0 : Math.PI)
+}
+Ray2D.prototype.nearestPointOnRay = function(other_point2D) {
+  var origin_to_op2D = new Vector2D(other_point2D.x - this.point.x, other_point2D.y - this.point.y);
+  return this.point.plus(origin_to_op2D.projectAlong(this.vector));
+}
+
+function Constraint() {}
+Constraint.prototype.applyTo = function(point) {
+  return p;
+}
+function XYConstraint(min_x, min_y, max_x, max_y) {
+  // min and max in form of {x: -, y: -} - inputs can be bound functions to constrict to dynamic values
+  this.x = {min: min_x !== null ? min_x : -Infinity, max: max_x !== null ? max_x : Infinity};
+  this.y = {min: min_y !== null ? min_y : -Infinity, max: max_y !== null ? max_y : Infinity};
+}
+XYConstraint.prototype = Object.create(Constraint.prototype);
+XYConstraint.prototype.applyTo = function(point) {
+  point.x = Math.max(Math.min(p.x,
+                              typeof this.x.max === 'function' ? this.x.max() : this.x.max),
+                              typeof this.x.min === 'function' ? this.x.min() : this.x.min);
+  point.y = Math.max(Math.min(p.y,
+                              typeof this.y.max === 'function' ? this.y.max() : this.y.max),
+                              typeof this.y.min === 'function' ? this.y.min() : this.y.min);
+  return point;
+};
+function RayConstraint(ray) {
+  this.ray = ray;
+}
+RayConstraint.prototype = Object.create(Constraint.prototype);
+RayConstraint.prototype.applyTo = function(point) {
+  return this.ray.nearestPointOnRay(point);
+};
+
 function mouseHandle2(context, parent, properties) {
   this.context = context;
   this.parentObject = parent;
+  this.children = [];
 
-  this.x = properties && properties.x !== undefined ? properties.x : 0;
-  this.y = properties && properties.y !== undefined ? properties.y : 0;
+  this.r = properties && properties.r !== undefined ? properties.r : 5;
+  this.position = new Point2D(properties && properties.x !== undefined ? properties.x : 0,
+                              properties && properties.y !== undefined ? properties.y : 0);
 
   this.active = properties && properties.angle !== undefined ? properties.angle : 0;
   this.visible = properties && properties.visible !== undefined ? properties.visible : 0;
   this.useObjectCollision = properties && properties.useObjectCollision !== undefined ? properties.useObjectCollision : false;
+
+  this.constraints = [];
+  var applyConstraints = function() {
+    for (var idx = 0; idx < this.constraints.length; idx++)
+      this.position.applyConstraint(this.constraints[idx]);
+  };
 }
+mouseHandle2.prototype.offset = function(x, y) {
+  this.x += x;
+  this.y += y;
+  this.applyConstraints();
+
+  for (var c = 0; c < this.children.length; c++)
+    this.children[c].offset(offset_x, offset_y);
+
+  return this;
+};
+mouseHandle2.prototype.addConstraint = function(constraint) {
+  this.constraints.push(constraint);
+  return this;
+}
+mouseHandle2.prototype.addChild = function(child) {
+  this.children.push(child);
+  return this;
+}
+mouseHandle2.prototype.addParent = function(parent) {
+  parent.addChild(this);
+  return this;
+}
+mouseHandle2.prototype.draw = function() {
+  if ((this.active || this.parentObject.mouseHandles[0].active) && this.visible) {
+    this.context.beginPath();
+    this.context.fillStyle = '#EEEEEE';
+    this.context.strokeStyle = '#444444';
+    this.context.arc(this.x, this.y, this.r, 0, Math.PI * 2, false);
+    this.context.fill();
+    this.context.stroke();
+  }
+};
+mouseHandle2.prototype.pointWithin = function(x, y)  {
+  if (this.useParentCollision)
+    return this.parentObject.pointWithin(x, y);
+  else
+    return Math.pow(this.x-x,2)+Math.pow(this.y-y,2) < Math.pow(this.r,2);
+};
 
 function Viewport(context, properties) {
   this.x = properties && properties.x !== undefined ? properties.x : context.canvas.width * 0.5;
@@ -775,10 +940,10 @@ LightSource.prototype.drawHandles = function() {
 LightSource.prototype.draw = function() {
   switch(this.type) {
     case 'sun':
-      this.drawRaysSun(this.objectManager.getType('OpticalElement'));
+      this.drawRaysSun(this.objectManager.getType('OpticalElement2'));
       break;
     case 'spot':
-      this.drawRaysSpot(this.objectManager.getType('OpticalElement'));
+      this.drawRaysSpot(this.objectManager.getType('OpticalElement2'));
       break;
   }
 
@@ -813,6 +978,117 @@ LightSource.prototype.drawRaysSpot = function(OpticalElements) {
                     this.ang+this.spray*Math.PI*((this.rays-1)*0.5-i)/this.rays, 0.0001, true);
   }
 };
+
+function OpticalElement2(context, properties) {
+  // initialization
+  this.context = context;
+	this.x = properties && properties.x !== undefined ? properties.x : 0;
+	this.y = properties && properties.y !== undefined ? properties.y : 0;
+	this.h = properties && properties.h !== undefined ? properties.h : 100;
+	this.w = properties && properties.w !== undefined ? properties.w : 10;
+  // offset of left edge of the lens [(-) is convex, (+) is concave]
+	this.c1 = {dx: properties && properties.c1.dx !== undefined ? properties.c1.dx : -20};
+  this.c1.min = function() { return -this.h*0.5; };
+  this.c1.max = function() { return Math.min(this.h*0.5, this.w+this.c2); };
+  // offset of right edge of the lens [(-) is concave, (+) is convex]
+	this.c2 = {dx: properties && properties.c2.dx !== undefined ? properties.c2.dx : 20};
+  this.c2.min = function() { return Math.max(-this.h*0.5, -this.w+this.c1); };
+  this.c2.max = function() { return this.h*0.5; };
+	this.refidx = properties && properties.refidx !== undefined ? properties.refidx : 2.15;
+	this.mouseHandles = [];
+
+	this.initMouseHandles = function() {
+		this.mouseHandles = [];
+
+    // center position (inherits this collision)
+		this.mouseHandles.push(
+      new mouseHandle2(context, this, {x: this.x, y: this.y, useParentCollision: true, visible: false})
+    );
+
+    // top right corner of base rectangle
+    this.mouseHandles.push(
+      new mouseHandle2(context, this, {x: this.x + this.w/2, y: this.y - this.h/2})
+        .addParent(this.mouseHandles[0])
+    );
+
+    // left arc handle
+    this.mouseHandles.push(
+      new mouseHandle2(context, this, {x: this.x + this.w/2 + this.c1.dx, y: this.y})
+        .addConstraint(new XYConstraint(
+          (function() { return this.x - this.w/2 - this.h/2 }).bind(this), // min_x
+          (function() { return this.y; }).bind(this), // min_y
+          (function() { return Math.min(this.x - this.w/2 + this.h/2, this.x + this.w/2 + this.c2.dx) }).bind(this), // max_x
+          (function() { return this.y; }).bind(this))) // max_y
+        .addParent(this.mouseHandles[0])
+    );
+
+    // right arc handle
+    this.mouseHandles.push(
+      new mouseHandle2(context, this, {x: this.x + this.w/2 + this.c2.dx, y: this.y})
+        .addConstraint(new XYConstraint(
+            (function() { return Math.max(this.x + this.w/2 - this.h/2, this.x - this.w/2 + this.c1.dx) }).bind(this), // min_x
+            (function() { return this.y; }).bind(this), // min_y
+            (function() { return this.x + this.w/2 + this.h/2 }).bind(this), // max_x
+            (function() { return this.y; }).bind(this))) //max_y
+        .addParent(this.mouseHandles[0])
+    );
+	};
+	this.initMouseHandles();
+}
+OpticalElement2.prototype.update = function () {
+  // update geometry from mouse handle positions
+  this.x = this.mouseHandles[0].position.x;
+  this.y = this.mouseHandles[0].position.y;
+  this.w = (this.mouseHandles[1].position.x-this.mouseHandles[0].position.x)*2;
+  this.h = (this.mouseHandles[0].position.y-this.mouseHandles[1].position.y)*2;
+  this.c1.dx = this.mouseHandles[2].position.x-2*this.mouseHandles[0].position.x+this.mouseHandles[1].position.x;
+  this.mouseHandles[2].position.y = this.mouseHandles[0].position.y;
+  this.c2.dx = this.mouseHandles[3].position.x-this.mouseHandles[1].position.x;
+  this.mouseHandles[3].position.y = this.mouseHandles[0].position.y;
+  // update additional circle parameters from 'dx' handle
+  this.updateCircleGeometry();
+};
+OpticalElement2.prototype.updateCircleGeometry = function () {
+  this.c1.x  = this.x-this.w/2+this.c1.dx/2-Math.pow(this.h, 2)/this.c1.dx*0.125;
+  this.c1.y  = this.y;
+  this.c1.r  = Math.abs(this.x-this.w/2+this.c1.dx-this.c1.x);
+  this.c1.a1 = (this.c1.dx < 0 ? Math.PI : 0) - Math.atan(-(this.h/2)/((this.x-this.w/2)-this.c1.x));
+  this.c1.a2 = (this.c1.dx < 0 ? Math.PI : 0) - Math.atan((this.h/2)/((this.x-this.w/2)-this.c1.x));
+
+  this.c2.x  = this.x+this.w/2+this.c2.dx/2-Math.pow(this.h, 2)/this.c2.dx*0.125;
+  this.c2.y  = this.y;
+  this.c2.r  = Math.abs(this.x+this.w/2+this.c2.dx-this.c2.x);
+  this.c2.a1 = (this.c2.dx < 0 ? Math.PI : 0) - Math.atan((this.h/2)/((this.x+this.w/2)-this.c2.x));
+  this.c2.a2 = (this.c2.dx < 0 ? Math.PI : 0) - Math.atan(-(this.h/2)/((this.x+this.w/2)-this.c2.x));
+};
+OpticalElement2.prototype.draw = function () {
+  this.context.lineWidth=0.5;
+  this.context.fillStyle='rgba(128, 164, 255, 0.6)';
+
+  this.context.beginPath();
+  this.context.arc(this.c2.x, this.c2.y, this.c2.r,
+    this.c2.a1,
+    this.c2.a2,
+    this.c2.dx < 0);
+  this.context.arc(this.c1.x, this.c1.y, this.c1.r,
+    this.c1.a1,
+    this.c1.a2,
+    this.c1.dx > 0);
+  this.context.lineTo(this.x+this.w/2, this.y-this.h/2);
+  this.context.fill();
+};
+OpticalElement2.prototype.drawHandles = function() {
+  for (var i = 0; i < this.mouseHandles.length; i++) this.mouseHandles[i].draw();
+};
+OpticalElement2.prototype.pointWithin = function(x, y) {
+  var within = 1;
+  within = within * (this.c1.dx < 0 ? (Math.pow(x-this.c1.x,2)+Math.pow(y-this.c1.y,2) < Math.pow(this.c1.r, 2) ? 1 : 0) : (Math.pow(x-this.c1.x,2)+Math.pow(y-this.c1.y,2) > Math.pow(this.c1.r, 2) ? 1 : 0));
+  within = within * (this.c2.dx < 0 ? (Math.pow(x-this.c2.x,2)+Math.pow(y-this.c2.y,2) > Math.pow(this.c2.r, 2) ? 1 : 0) : (Math.pow(x-this.c2.x,2)+Math.pow(y-this.c2.y,2) < Math.pow(this.c2.r, 2) ? 1 : 0));
+  within = within * (y <= this.y + this.h/2) * (y >= this.y - this.h/2);
+  within = within * (x <= this.x + Math.max(this.w/2, this.w/2 + this.c2.dx)) * (x >= this.x - Math.max(this.w/2, this.w/2 - this.c1.dx));
+  return within;
+};
+
 
 function img(context, objectManager, properties) {			     	// image light source
 	var om = objectManager;
