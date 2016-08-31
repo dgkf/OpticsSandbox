@@ -406,7 +406,8 @@ Ray2D.prototype.getAngle = function() {
 }
 Ray2D.prototype.nearestPointOnRay = function(other_point2D) {
   var origin_to_op2D = new Vector2D(other_point2D.x - this.point.x, other_point2D.y - this.point.y);
-  return Point2D.prototype.plus.call(this.point, origin_to_op2D.projectAlong(this.vector));
+  return Point2D.prototype.plus.call(this.point,
+           Vector2D.prototype.projectAlong.call(origin_to_op2D, this.vector));
 }
 function Point2D(x, y) {
   this.x = x;
@@ -447,7 +448,7 @@ Vector2D.prototype.fromPoint = function(point) {
   this.y = point.y;
 };
 Vector2D.prototype.mag = function() {
-  return Vector2D.prototype.dot(this, this);
+  return this.x * this.x + this.y * this.y;
 };
 Vector2D.prototype.negate = function() {
   this.x *= -1.0;
@@ -488,7 +489,7 @@ Vector2D.prototype.cross = function(other_Vector2D) {
 };
 Vector2D.prototype.projectAlong = function(other_Vector2D) {
   return Vector2D.prototype.times.call(other_Vector2D,
-           Vector2D.prototype.dot(this,
+           Vector2D.prototype.dot.call(this,
              Vector2D.prototype.divide.call(other_Vector2D,
                Vector2D.prototype.mag.call(other_Vector2D))));
 };
@@ -1181,7 +1182,7 @@ function LightSource2(context, objectManager, properties) {
     this.mouseHandles.push(new mouseHandle2(context, this, {x: this.x, y: this.y, r: this.r, visible: false, useParentCollision: true}));
 
     // angle and spread
-		this.mouseHandles.push(new mouseHandle2(context,this,{x: this.x, y: this.y})
+		this.mouseHandles.push(new mouseHandle2(context,this,{x: this.x - 50, y: this.y})
       .addConstraint(new DistanceConstraint(
         new Point2D(
           (function() { return this.x; }).bind(this),
@@ -1190,7 +1191,7 @@ function LightSource2(context, objectManager, properties) {
       .addParent(this.mouseHandles[0]));
 
     // ray separation
-		this.mouseHandles.push(new mouseHandle2(context,this,{x: this.x, y: this.y})
+		this.mouseHandles.push(new mouseHandle2(context,this,{x: this.x - 50, y: this.y})
       .addConstraint(new RayConstraint(
         new Ray2D(
           new Point2D(
@@ -1205,6 +1206,8 @@ function LightSource2(context, objectManager, properties) {
 	this.initMouseHandles();
 }
 LightSource2.prototype.update = function() {
+  for (var h = 0; h < this.mouseHandles.length; h++) this.mouseHandles[h].applyConstraints()
+
   this.x = this.mouseHandles[0].position.x;
   this.y = this.mouseHandles[0].position.y;
   this.ang = (this.mouseHandles[1].position.x < this.mouseHandles[0].position.x ? Math.PI : 0) + Math.atan((this.mouseHandles[1].position.y-this.mouseHandles[0].position.y)/(this.mouseHandles[1].position.x-this.mouseHandles[0].position.x));
@@ -1381,8 +1384,6 @@ LightSource2.prototype.drawRaysSpot = function(OpticalElements) {
                     this.ang+this.spray*Math.PI*((this.rays-1)*0.5-i)/this.rays, 0.0001, false);
   }
 };
-
-
 
 function img(context, objectManager, properties) {			     	// image light source
 	var om = objectManager;
