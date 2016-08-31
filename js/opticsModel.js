@@ -138,7 +138,8 @@ function mouseHandler(context, om, vp) {				    // mouse manager
 
   function setSelection(handles) {
     clearSelection();
-    if (handles.constructor.name == 'mouseHandle') { handles.active = true; selectedHandles.push(handles);
+    if (handles.constructor.name == 'mouseHandle' || handles.constructor.name == 'mouseHandle2') {
+      handles.active = true; selectedHandles.push(handles);
     } else for (var h in handles) { handles[h].active = true; selectedHandles.push(handles[h]); }
 
     if (selectedHandles.length == 1) {
@@ -173,33 +174,35 @@ function mouseHandler(context, om, vp) {				    // mouse manager
         var object_interactions_handled = false;
         // allow selection of a child handles within an object
   			for (var h = 0; h < selectedHandles.length; h++)
-  				for (var hph = selectedHandles[h].parentObject.mouseHandles.length-1; hph >= 1 ; hph--)
+  				for (var hph = selectedHandles[h].parentObject.mouseHandles.length-1; hph >= 1 ; hph--) {
   					if (selectedHandles[h].parentObject.mouseHandles[hph].pointWithin(world_point[0], world_point[1])) {
               setSelection(selectedHandles[h].parentObject.mouseHandles[hph]);
               object_interactions_handled = true;
   					}
+          }
 
         // retain all objects selected if a parent object is being moved as part of a group
         if (!object_interactions_handled) {
     			var keep_selection = false;
-    			for (h = 0; h < selectedHandles.length; h++)
+    			for (h = 0; h < selectedHandles.length; h++) {
     				if (selectedHandles[h].pointWithin(world_point[0], world_point[1])) {
               keep_selection = true;
               object_interactions_handled = true;
             }
+          }
     			if (!keep_selection) clearSelection();
         }
 
         // selection of a new object
         if (!object_interactions_handled)
-      		for (var obj_type = 0; obj_type < om.objs.length; obj_type++)
+      		for (var obj_type in om.objs) {
       			for (var obj_idx = 0; obj_idx < om.objs[obj_type].length; obj_idx++) {
-      				if (!!om.objs[obj_type][obj_idx].pointWithin &&
-                  om.objs[obj_type][obj_idx].pointWithin(world_point[0], world_point[1])) {
+      				if (om.objs[obj_type][obj_idx].pointWithin(world_point[0], world_point[1])) {
       					setSelection(om.objs[obj_type][obj_idx].mouseHandles[0]);
                 object_interactions_handled = true;
       				}
             }
+          }
         break;
       case 1:
         // upkeep
@@ -266,7 +269,7 @@ function mouseHandler(context, om, vp) {				    // mouse manager
     // object interaction
     if (selectedHandles.length > 0 && leftMouseDown)
       for (var h = 0; h < selectedHandles.length; h++) {
-        selectedHandles[h].offset(pos_world[0] - lastMove_world[0], pos_world[1] - lastMove_world[1]);
+        selectedHandles[h].offset(posWorld.x - lastMove_world[0], posWorld.y - lastMove_world[1]);
       }
 
     // viewport interaction
@@ -394,6 +397,10 @@ function Point2D(x, y) {
   this.x = x;
   this.y = y;
 }
+Point2D.prototype.set = function(x, y) {
+  this.x = x;
+  this.y = y;
+}
 Point2D.prototype.toVector2D = function() {
   return new Vector2D(this.x, this.y);
 };
@@ -483,7 +490,7 @@ Ray2D.prototype.nearestPointOnRay = function(other_point2D) {
 
 function Constraint() {}
 Constraint.prototype.applyTo = function(point) {
-  return p;
+  return point;
 }
 function XYConstraint(min_x, min_y, max_x, max_y) {
   // min and max in form of {x: -, y: -} - inputs can be bound functions to constrict to dynamic values
@@ -492,10 +499,10 @@ function XYConstraint(min_x, min_y, max_x, max_y) {
 }
 XYConstraint.prototype = Object.create(Constraint.prototype);
 XYConstraint.prototype.applyTo = function(point) {
-  point.x = Math.max(Math.min(p.x,
+  point.x = Math.max(Math.min(point.x,
                               typeof this.x.max === 'function' ? this.x.max() : this.x.max),
                               typeof this.x.min === 'function' ? this.x.min() : this.x.min);
-  point.y = Math.max(Math.min(p.y,
+  point.y = Math.max(Math.min(point.y,
                               typeof this.y.max === 'function' ? this.y.max() : this.y.max),
                               typeof this.y.min === 'function' ? this.y.min() : this.y.min);
   return point;
@@ -517,9 +524,9 @@ function mouseHandle2(context, parent, properties) {
   this.position = new Point2D(properties && properties.x !== undefined ? properties.x : 0,
                               properties && properties.y !== undefined ? properties.y : 0);
 
-  this.active = properties && properties.angle !== undefined ? properties.angle : 0;
-  this.visible = properties && properties.visible !== undefined ? properties.visible : 0;
-  this.useObjectCollision = properties && properties.useObjectCollision !== undefined ? properties.useObjectCollision : false;
+  this.active = properties && properties.angle !== undefined ? properties.angle : false;
+  this.visible = properties && properties.visible !== undefined ? properties.visible : true;
+  this.useParentCollision = properties && properties.useParentCollision !== undefined ? properties.useParentCollision : false;
 
   this.constraints = [];
   var applyConstraints = function() {
@@ -528,15 +535,30 @@ function mouseHandle2(context, parent, properties) {
   };
 }
 mouseHandle2.prototype.offset = function(x, y) {
-  this.x += x;
-  this.y += y;
+  this.position.x += x;
+  this.position.y += y;
   this.applyConstraints();
 
   for (var c = 0; c < this.children.length; c++)
-    this.children[c].offset(offset_x, offset_y);
+    this.children[c].offset(x, y);
 
   return this;
 };
+mouseHandle2.prototype.moveTo = function(x, y) {
+  offset = new Vector2D(x - this.position.x, y - this.position.y);
+
+  this.position.x = x;
+  this.position.y = y;
+  this.applyConstraints();
+
+  for (var c = 0; c < this.children.length; c++)
+    this.children[c].offset(offset.x, offset.y);
+
+  return this;
+}
+mouseHandle2.prototype.applyConstraints = function() {
+  for (var c = 0; c < this.constraints.length; c++) this.position.applyConstraint(this.constraints[c]);
+}
 mouseHandle2.prototype.addConstraint = function(constraint) {
   this.constraints.push(constraint);
   return this;
@@ -554,7 +576,7 @@ mouseHandle2.prototype.draw = function() {
     this.context.beginPath();
     this.context.fillStyle = '#EEEEEE';
     this.context.strokeStyle = '#444444';
-    this.context.arc(this.x, this.y, this.r, 0, Math.PI * 2, false);
+    this.context.arc(this.position.x, this.position.y, this.r, 0, Math.PI * 2, false);
     this.context.fill();
     this.context.stroke();
   }
@@ -563,7 +585,7 @@ mouseHandle2.prototype.pointWithin = function(x, y)  {
   if (this.useParentCollision)
     return this.parentObject.pointWithin(x, y);
   else
-    return Math.pow(this.x-x,2)+Math.pow(this.y-y,2) < Math.pow(this.r,2);
+    return Math.pow(this.position.x-x,2)+Math.pow(this.position.y-y,2) < Math.pow(this.r,2);
 };
 
 function Viewport(context, properties) {
@@ -964,7 +986,7 @@ LightSource.prototype.drawRaysSun = function(OpticalElements) {
     this.context.lineWidth = 0.5;
     this.context.fillStyle = 'none';
     this.context.strokeStyle = (this.raycolor === '' ? HSVtoHEX(i/this.rays, 0.3, 1.0) : this.raycolor);
-    this.drawRaySeg(OpticalElements, {x:this.x, y:this.y}, i/this.rays*2*Math.PI, 0.0001, true);
+    this.drawRaySeg(OpticalElements, {x:this.x, y:this.y}, i/this.rays*2*Math.PI, 0.0001, false);
   }
 };
 LightSource.prototype.drawRaysSpot = function(OpticalElements) {
@@ -975,7 +997,7 @@ LightSource.prototype.drawRaysSpot = function(OpticalElements) {
     this.drawRaySeg(OpticalElements,
                     {x:this.x+Math.sin(this.ang)*this.w*(i-(this.rays-1)*0.5)/this.rays,
                      y:this.y-Math.cos(this.ang)*this.w*(i-(this.rays-1)*0.5)/this.rays},
-                    this.ang+this.spray*Math.PI*((this.rays-1)*0.5-i)/this.rays, 0.0001, true);
+                    this.ang+this.spray*Math.PI*((this.rays-1)*0.5-i)/this.rays, 0.0001, false);
   }
 };
 
@@ -986,14 +1008,8 @@ function OpticalElement2(context, properties) {
 	this.y = properties && properties.y !== undefined ? properties.y : 0;
 	this.h = properties && properties.h !== undefined ? properties.h : 100;
 	this.w = properties && properties.w !== undefined ? properties.w : 10;
-  // offset of left edge of the lens [(-) is convex, (+) is concave]
 	this.c1 = {dx: properties && properties.c1.dx !== undefined ? properties.c1.dx : -20};
-  this.c1.min = function() { return -this.h*0.5; };
-  this.c1.max = function() { return Math.min(this.h*0.5, this.w+this.c2); };
-  // offset of right edge of the lens [(-) is concave, (+) is convex]
 	this.c2 = {dx: properties && properties.c2.dx !== undefined ? properties.c2.dx : 20};
-  this.c2.min = function() { return Math.max(-this.h*0.5, -this.w+this.c1); };
-  this.c2.max = function() { return this.h*0.5; };
 	this.refidx = properties && properties.refidx !== undefined ? properties.refidx : 2.15;
 	this.mouseHandles = [];
 
@@ -1008,6 +1024,11 @@ function OpticalElement2(context, properties) {
     // top right corner of base rectangle
     this.mouseHandles.push(
       new mouseHandle2(context, this, {x: this.x + this.w/2, y: this.y - this.h/2})
+        .addConstraint(new XYConstraint(
+          (function() { return this.x; }).bind(this), //min_x
+          -Infinity, //min_y
+          Infinity, // max_x
+          (function() { return this.y; }).bind(this))) // max_y
         .addParent(this.mouseHandles[0])
     );
 
@@ -1015,9 +1036,9 @@ function OpticalElement2(context, properties) {
     this.mouseHandles.push(
       new mouseHandle2(context, this, {x: this.x + this.w/2 + this.c1.dx, y: this.y})
         .addConstraint(new XYConstraint(
-          (function() { return this.x - this.w/2 - this.h/2 }).bind(this), // min_x
+          (function() { return this.x - this.w/2 - (this.h-0.001)/2 }).bind(this), // min_x
           (function() { return this.y; }).bind(this), // min_y
-          (function() { return Math.min(this.x - this.w/2 + this.h/2, this.x + this.w/2 + this.c2.dx) }).bind(this), // max_x
+          (function() { return Math.min(this.x - this.w/2 + (this.h-0.001)/2, this.x + this.w/2 + this.c2.dx) }).bind(this), // max_x
           (function() { return this.y; }).bind(this))) // max_y
         .addParent(this.mouseHandles[0])
     );
@@ -1026,16 +1047,19 @@ function OpticalElement2(context, properties) {
     this.mouseHandles.push(
       new mouseHandle2(context, this, {x: this.x + this.w/2 + this.c2.dx, y: this.y})
         .addConstraint(new XYConstraint(
-            (function() { return Math.max(this.x + this.w/2 - this.h/2, this.x - this.w/2 + this.c1.dx) }).bind(this), // min_x
+            (function() { return Math.max(this.x + this.w/2 - (this.h-0.001)/2, this.x - this.w/2 + this.c1.dx) }).bind(this), // min_x
             (function() { return this.y; }).bind(this), // min_y
-            (function() { return this.x + this.w/2 + this.h/2 }).bind(this), // max_x
+            (function() { return this.x + this.w/2 + (this.h-0.01)/2 }).bind(this), // max_x
             (function() { return this.y; }).bind(this))) //max_y
         .addParent(this.mouseHandles[0])
     );
-	};
+  };
 	this.initMouseHandles();
 }
+// TODO: This needs to be cleaned up. I don't think this is the right way to update..
 OpticalElement2.prototype.update = function () {
+  for (var h = 0; h < this.mouseHandles.length; h++) this.mouseHandles[h].applyConstraints()
+
   // update geometry from mouse handle positions
   this.x = this.mouseHandles[0].position.x;
   this.y = this.mouseHandles[0].position.y;
