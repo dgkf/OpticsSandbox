@@ -445,6 +445,7 @@ function MouseHandle(context, parent, properties) {
   this.useParentCollision = properties && properties.useParentCollision !== undefined ? properties.useParentCollision : false;
 
   this.constraints = [];
+  this.callbacks = [];
   var applyConstraints = function() {
     for (var idx = 0; idx < this.constraints.length; idx++)
       this.position.applyConstraint(this.constraints[idx]);
@@ -453,6 +454,8 @@ function MouseHandle(context, parent, properties) {
 MouseHandle.prototype.offset = function(x, y) {
   this.position.x += x;
   this.position.y += y;
+  this.applyConstraints();
+  this.applyCallbacks();
 
   for (var c = 0; c < this.children.length; c++)
     this.children[c].offset(x, y);
@@ -472,9 +475,21 @@ MouseHandle.prototype.moveTo = function(x, y) {
 MouseHandle.prototype.applyConstraints = function() {
   for (var c = 0; c < this.constraints.length; c++)
     this.position.applyConstraint(this.constraints[c]);
+
+  return this;
 }
 MouseHandle.prototype.addConstraint = function(constraint) {
   this.constraints.push(constraint);
+  return this;
+}
+MouseHandle.prototype.applyCallbacks = function() {
+  for (var c = 0; c < this.callbacks.length; c++)
+    this.callbacks[c]();
+
+  return this;
+}
+MouseHandle.prototype.addCallback = function(callback) {
+  this.callbacks.push(callback);
   return this;
 }
 MouseHandle.prototype.addChild = function(child) {
@@ -671,7 +686,6 @@ Grid.prototype.draw = function(transform) {
   this.context.lineTo(0, vp_max_xy[1]);
   this.context.stroke();
 };
-
 function OpticalElement(context, properties) {
   // initialization
   this.context = context;
@@ -685,79 +699,65 @@ function OpticalElement(context, properties) {
 	this.mouseHandles = [];
 
 	this.initMouseHandles = function() {
-		this.mouseHandles = [];
-
     // center position (inherits this collision)
 		this.mouseHandles.push(
       new MouseHandle(context, this, {x: this.x, y: this.y, useParentCollision: true, visible: false})
+        .addCallback((function() {
+            this.x = this.mouseHandles[0].position.x;
+            this.y = this.mouseHandles[0].position.y; }).bind(this))
     );
-
     // top right corner of base rectangle
     this.mouseHandles.push(
       new MouseHandle(context, this, {x: this.x + this.w/2, y: this.y - this.h/2})
+        .addParent(this.mouseHandles[0])
         .addConstraint(new XYConstraint(
           (function() { return this.x; }).bind(this), //min_x
           -Infinity, //min_y
           Infinity, // max_x
           (function() { return this.y; }).bind(this))) // max_y
-        .addParent(this.mouseHandles[0])
+        .addCallback((function() {
+          this.w = (this.mouseHandles[1].position.x-this.mouseHandles[0].position.x)*2;
+          this.h = this.h = (this.mouseHandles[0].position.y-this.mouseHandles[1].position.y)*2; }).bind(this))
     );
-
     // left arc handle
     this.mouseHandles.push(
       new MouseHandle(context, this, {x: this.x + this.w/2 + this.c1.dx, y: this.y})
+        .addParent(this.mouseHandles[1])
         .addConstraint(new XYConstraint(
           (function() { return this.x - this.w/2 - (this.h-0.001)/2 }).bind(this), // min_x
           (function() { return this.y; }).bind(this), // min_y
           (function() { return Math.min(this.x - this.w/2 + (this.h-0.001)/2, this.x + this.w/2 + this.c2.dx) }).bind(this), // max_x
           (function() { return this.y; }).bind(this))) // max_y
-        .addParent(this.mouseHandles[0])
+        .addCallback((function() {
+          this.c1.dx = this.mouseHandles[2].position.x-2*this.mouseHandles[0].position.x+this.mouseHandles[1].position.x;
+          this.c1.x  = this.x-this.w/2+this.c1.dx/2-Math.pow(this.h, 2)/this.c1.dx*0.125;
+          this.c1.y  = this.y;
+          this.c1.r  = Math.abs(this.x-this.w/2+this.c1.dx-this.c1.x);
+          this.c1.a1 = (this.c1.dx < 0 ? Math.PI : 0) - Math.atan(-(this.h/2)/((this.x-this.w/2)-this.c1.x));
+          this.c1.a2 = (this.c1.dx < 0 ? Math.PI : 0) - Math.atan((this.h/2)/((this.x-this.w/2)-this.c1.x)); }).bind(this))
     );
-
     // right arc handle
     this.mouseHandles.push(
       new MouseHandle(context, this, {x: this.x + this.w/2 + this.c2.dx, y: this.y})
+        .addParent(this.mouseHandles[1])
         .addConstraint(new XYConstraint(
-            (function() { return Math.max(this.x + this.w/2 - (this.h-0.001)/2, this.x - this.w/2 + this.c1.dx) }).bind(this), // min_x
-            (function() { return this.y; }).bind(this), // min_y
-            (function() { return this.x + this.w/2 + (this.h-0.01)/2 }).bind(this), // max_x
-            (function() { return this.y; }).bind(this))) //max_y
-        .addParent(this.mouseHandles[0])
+          (function() { return Math.max(this.x + this.w/2 - (this.h-0.001)/2, this.x - this.w/2 + this.c1.dx) }).bind(this), // min_x
+          (function() { return this.y; }).bind(this), // min_y
+          (function() { return this.x + this.w/2 + (this.h-0.01)/2 }).bind(this), // max_x
+          (function() { return this.y; }).bind(this))) //max_y
+        .addCallback((function() {
+          this.c2.dx = this.mouseHandles[3].position.x-this.mouseHandles[1].position.x;
+          this.c2.x  = this.x+this.w/2+this.c2.dx/2-Math.pow(this.h, 2)/this.c2.dx*0.125;
+          this.c2.y  = this.y;
+          this.c2.r  = Math.abs(this.x+this.w/2+this.c2.dx-this.c2.x);
+          this.c2.a1 = (this.c2.dx < 0 ? Math.PI : 0) - Math.atan((this.h/2)/((this.x+this.w/2)-this.c2.x));
+          this.c2.a2 = (this.c2.dx < 0 ? Math.PI : 0) - Math.atan(-(this.h/2)/((this.x+this.w/2)-this.c2.x)); }).bind(this))
     );
+    this.mouseHandles[2].applyCallbacks(); // run this once on initialization to initialize .c1 properties
+    this.mouseHandles[3].applyCallbacks(); // run this once on initialization to initialize .c2 properties
   };
 	this.initMouseHandles();
 }
-// TODO: This needs to be cleaned up. I don't think this is the right way to update..
-//       The way it is now, moving child handles can cause distortion to the geometry
-OpticalElement.prototype.update = function () {
-  // update geometry from mouse handle positions
-  this.x = this.mouseHandles[0].position.x;
-  this.y = this.mouseHandles[0].position.y;
-  this.w = (this.mouseHandles[1].position.x-this.mouseHandles[0].position.x)*2;
-  this.h = (this.mouseHandles[0].position.y-this.mouseHandles[1].position.y)*2;
-  this.c1.dx = this.mouseHandles[2].position.x-2*this.mouseHandles[0].position.x+this.mouseHandles[1].position.x;
-  this.mouseHandles[2].position.y = this.mouseHandles[0].position.y;
-  this.c2.dx = this.mouseHandles[3].position.x-this.mouseHandles[1].position.x;
-  this.mouseHandles[3].position.y = this.mouseHandles[0].position.y;
-
-  for (var h = 0; h < this.mouseHandles.length; h++) this.mouseHandles[h].applyConstraints()
-
-  // update additional circle parameters from 'dx' handle
-  this.updateCircleGeometry();
-};
-OpticalElement.prototype.updateCircleGeometry = function () {
-  this.c1.x  = this.x-this.w/2+this.c1.dx/2-Math.pow(this.h, 2)/this.c1.dx*0.125;
-  this.c1.y  = this.y;
-  this.c1.r  = Math.abs(this.x-this.w/2+this.c1.dx-this.c1.x);
-  this.c1.a1 = (this.c1.dx < 0 ? Math.PI : 0) - Math.atan(-(this.h/2)/((this.x-this.w/2)-this.c1.x));
-  this.c1.a2 = (this.c1.dx < 0 ? Math.PI : 0) - Math.atan((this.h/2)/((this.x-this.w/2)-this.c1.x));
-
-  this.c2.x  = this.x+this.w/2+this.c2.dx/2-Math.pow(this.h, 2)/this.c2.dx*0.125;
-  this.c2.y  = this.y;
-  this.c2.r  = Math.abs(this.x+this.w/2+this.c2.dx-this.c2.x);
-  this.c2.a1 = (this.c2.dx < 0 ? Math.PI : 0) - Math.atan((this.h/2)/((this.x+this.w/2)-this.c2.x));
-  this.c2.a2 = (this.c2.dx < 0 ? Math.PI : 0) - Math.atan(-(this.h/2)/((this.x+this.w/2)-this.c2.x));
-};
 OpticalElement.prototype.draw = function () {
   this.context.lineWidth=0.5;
   this.context.fillStyle='rgba(128, 164, 255, 0.6)';
@@ -815,25 +815,30 @@ function LightSource(context, objectManager, properties) {
 	this.raycolor = properties && properties.raycolor !== undefined ? properties.raycolor : '';
 	this.ang = properties && properties.ang !== undefined ? properties.ang : Math.PI;
 	this.dist = properties && properties.dist !== undefined ? properties.dist : null;
-	this.mouseHandles = null;
+	this.mouseHandles = [];
 
   this.initMouseHandles = function() {
-		this.mouseHandles = [];
-
     // origin - uses parent collision
-    this.mouseHandles.push(new MouseHandle(context, this, {x: this.x, y: this.y, r: this.r, visible: false, useParentCollision: true}));
-
+    this.mouseHandles.push(new MouseHandle(context, this, {x: this.x, y: this.y, r: this.r, visible: false, useParentCollision: true})
+      .addCallback((function() {
+        this.x = this.mouseHandles[0].position.x;
+        this.y = this.mouseHandles[0].position.y; }).bind(this))
+    );
     // angle and spread
 		this.mouseHandles.push(new MouseHandle(context,this,{x: this.x - 50, y: this.y})
+      .addParent(this.mouseHandles[0])
       .addConstraint(new DistanceConstraint(
         new Point2D(
           (function() { return this.x; }).bind(this),
           (function() { return this.y; }).bind(this)),
         200))
-      .addParent(this.mouseHandles[0]));
-
+      .addCallback((function() {
+        this.ang = (this.mouseHandles[1].position.x < this.mouseHandles[0].position.x ? Math.PI : 0) + Math.atan((this.mouseHandles[1].position.y-this.mouseHandles[0].position.y)/(this.mouseHandles[1].position.x-this.mouseHandles[0].position.x));
+        this.spray = Math.min(1, Math.max(-0.2, (Math.sqrt(Math.pow(this.mouseHandles[1].position.x-this.mouseHandles[0].position.x,2)+Math.pow(this.mouseHandles[1].position.y-this.mouseHandles[0].position.y,2))-100)*0.005)); }).bind(this))
+    );
     // ray separation
 		this.mouseHandles.push(new MouseHandle(context,this,{x: this.x - 50, y: this.y})
+      .addParent(this.mouseHandles[0])
       .addConstraint(new RayConstraint(
         new Ray2D(
           new Point2D(
@@ -842,19 +847,39 @@ function LightSource(context, objectManager, properties) {
           new Vector2D(
             (function() { return Math.cos(this.ang); }).bind(this),
             (function() { return Math.sin(this.ang); }).bind(this)))))
-       .addParent(this.mouseHandles[0]));
+      .addCallback((function() {
+        this.w = Math.sqrt(Math.pow(this.mouseHandles[2].position.x-this.mouseHandles[0].position.x,2)+Math.pow(this.mouseHandles[2].position.y-this.mouseHandles[0].position.y,2))*2; }).bind(this))
+    );
+    this.mouseHandles[1].applyCallbacks();
+    this.mouseHandles[2].applyCallbacks();
 	};
 
 	this.initMouseHandles();
 }
-LightSource.prototype.update = function() {
-  for (var h = 0; h < this.mouseHandles.length; h++) this.mouseHandles[h].applyConstraints()
+LightSource.prototype.pointWithin = function(x, y) {
+   return Math.pow(x-this.x,2)+Math.pow(y-this.y,2)<=Math.pow(this.r,2);
+};
+LightSource.prototype.draw = function() {
+  switch(this.type) {
+    case 'sun':
+      this.drawRaysSun(this.objectManager.getType('OpticalElement'));
+      break;
+    case 'spot':
+      this.drawRaysSpot(this.objectManager.getType('OpticalElement'));
+      break;
+  }
 
-  this.x = this.mouseHandles[0].position.x;
-  this.y = this.mouseHandles[0].position.y;
-  this.ang = (this.mouseHandles[1].position.x < this.mouseHandles[0].position.x ? Math.PI : 0) + Math.atan((this.mouseHandles[1].position.y-this.mouseHandles[0].position.y)/(this.mouseHandles[1].position.x-this.mouseHandles[0].position.x));
-  this.spray = Math.min(1, Math.max(-0.2, (Math.sqrt(Math.pow(this.mouseHandles[1].position.x-this.mouseHandles[0].position.x,2)+Math.pow(this.mouseHandles[1].position.y-this.mouseHandles[0].position.y,2))-100)*0.005));
-  this.w   = Math.sqrt(Math.pow(this.mouseHandles[2].position.x-this.mouseHandles[0].position.x,2)+Math.pow(this.mouseHandles[2].position.y-this.mouseHandles[0].position.y,2))*2;
+  this.context.lineWidth = 0.5;
+  this.context.fillStyle = (this.raycolor === '' ? '#FFFFAA' : this.raycolor);
+
+  this.context.beginPath();
+  this.context.moveTo(this.x+this.r, this.y);
+  this.context.fillStyle = this.objectManager.clearColor;
+  this.context.arc(this.x, this.y, this.r, 0, 2*Math.PI, false);
+  this.context.fill();
+  this.context.fillStyle = (this.raycolor === '' ? '#FFFFAA' : this.raycolor);
+  this.context.arc(this.x, this.y, this.r, 0, 2*Math.PI, false);
+  this.context.fill();
 };
 LightSource.prototype.drawRaySeg = function(OpticalElements, origin, angle, sensitivity, allowInternalRefraction) {
   var origin_new = origin;
@@ -977,34 +1002,6 @@ LightSource.prototype.drawRaySeg = function(OpticalElements, origin, angle, sens
     this.drawRaySeg(OpticalElements, origin_new, angle_new, sensitivity, allowInternalRefraction);
   }
 };
-LightSource.prototype.pointWithin = function(x, y) {
-   return Math.pow(x-this.x,2)+Math.pow(y-this.y,2)<=Math.pow(this.r,2);
-};
-LightSource.prototype.drawHandles = function() {
-  for (var i = 0; i < this.mouseHandles.length; i++) this.mouseHandles[i].draw();
-};
-LightSource.prototype.draw = function() {
-  switch(this.type) {
-    case 'sun':
-      this.drawRaysSun(this.objectManager.getType('OpticalElement'));
-      break;
-    case 'spot':
-      this.drawRaysSpot(this.objectManager.getType('OpticalElement'));
-      break;
-  }
-
-  this.context.lineWidth = 0.5;
-  this.context.fillStyle = (this.raycolor === '' ? '#FFFFAA' : this.raycolor);
-
-  this.context.beginPath();
-  this.context.moveTo(this.x+this.r, this.y);
-  this.context.fillStyle = this.objectManager.clearColor;
-  this.context.arc(this.x, this.y, this.r, 0, 2*Math.PI, false);
-  this.context.fill();
-  this.context.fillStyle = (this.raycolor === '' ? '#FFFFAA' : this.raycolor);
-  this.context.arc(this.x, this.y, this.r, 0, 2*Math.PI, false);
-  this.context.fill();
-};
 LightSource.prototype.drawRaysSun = function(OpticalElements) {
   for (var i = 0; i < this.rays; i++) {
     this.context.lineWidth = 0.5;
@@ -1023,6 +1020,9 @@ LightSource.prototype.drawRaysSpot = function(OpticalElements) {
                      y:this.y-Math.cos(this.ang)*this.w*(i-(this.rays-1)*0.5)/this.rays},
                     this.ang+this.spray*Math.PI*((this.rays-1)*0.5-i)/(this.rays), 0.0001, false);
   }
+};
+LightSource.prototype.drawHandles = function() {
+  for (var i = 0; i < this.mouseHandles.length; i++) this.mouseHandles[i].draw();
 };
 function img(context, objectManager, properties) {			     	// image light source
 	var om = objectManager;
