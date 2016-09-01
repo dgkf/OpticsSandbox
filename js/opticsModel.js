@@ -3,14 +3,14 @@ function opticsModel(canvas, context) {
 	var om = new ObjectManager(context);
   var mh = new MouseHandler(context, om, vp);
   var kh = new KeyHandler(context, om, mh);
-  vp.addToScene(new grid(context));
+  vp.addToScene(new Grid(context));
   vp.addToScene(om);
   vp.addToScene(mh);
 	this.fps = 60;
 
 	this.init = function() {
 		om.add(new OpticalElement(context, {x: 0, y: 0, h: 200, w: 5, c1:{dx:-30}, c2:{dx:30} }));
-		om.add(new LightSource(context, om, {x: 250, y: 0, raycolor: 'rgba(236, 236, 64, 0.8)', rays: 1, type:'spot'}));
+		om.add(new LightSource(context, om, {x: 250, y: 0, raycolor: 'rgba(236, 236, 64, 0.8)', rays: 12, type:'spot'}));
 		//om.add(new img(ctx, om));
 		//om.add(new img(ctx, om, {src: 'assets/opera.gif'}));
 		//om.add(new le(ctx, {x: 100, y: 300, h: 200, w: 10, c1:{dx:-10}, c2:{dx:10}}));
@@ -118,6 +118,26 @@ Vector2D.prototype.times = function(scalar) {
 Vector2D.prototype.divide = function(scalar) {
   this.x /= scalar;
   this.y /= scalar;
+  return this;
+};
+Vector2D.prototype.log2 = function() {
+  this.x = Math.log2(this.x);
+  this.y = Math.log2(this.y);
+  return this;
+};
+Vector2D.prototype.log10 = function() {
+  this.x = Math.log10(this.x);
+  this.y = Math.log10(this.y);
+  return this;
+};
+Vector2D.prototype.log = function(scalar) {
+  this.x = Math.log(this.x)/Math.log(scalar);
+  this.y = Math.log(this.y)/Math.log(scalar);
+  return this;
+}
+Vector2D.prototype.pow = function(scalar) {
+  this.x = Math.pow(this.x, scalar);
+  this.y = Math.pow(this.y, scalar);
   return this;
 };
 Vector2D.prototype.plus = function(other_Vector2D) {
@@ -599,65 +619,59 @@ DistanceConstraint.prototype.applyTo = function(point) {
   return point;
 }
 
-function grid(context, properties) {
-  this.majorIncrement = 250;
-  this.minorIncrement = 50;
-  this.majorColor = 'rgba(200,200,200,0.3)';
-  this.minorColor = 'rgba(200,200,200,0.1)';
-
-  this.draw = function(transform) {
-    var vp_min_xy = transform.untransformPoint(0, 0);
-    var vp_max_xy = transform.untransformPoint(context.canvas.width, context.canvas.height);
-    var x, y;
-
-    // draw major lines
-    context.strokeStyle = this.majorColor;
-    // vertical
-    for (x = Math.floor(vp_min_xy[0] / this.majorIncrement); x <= Math.ceil(vp_max_xy[0] / this.majorIncrement); x++) {
-      context.beginPath();
-      context.moveTo(x * this.majorIncrement, vp_min_xy[1]);
-      context.lineTo(x * this.majorIncrement, vp_max_xy[1]);
-      context.stroke();
-    }
-    // horizontal
-    for (y = Math.floor(vp_min_xy[1] / this.majorIncrement); y <= Math.ceil(vp_max_xy[1] / this.majorIncrement); y++) {
-      context.beginPath();
-      context.moveTo(vp_min_xy[0], y * this.majorIncrement);
-      context.lineTo(vp_max_xy[0], y * this.majorIncrement);
-      context.stroke();
-    }
-
-    // draw minor lines
-    context.strokeStyle = this.minorColor;
-    // vertical
-    for (x = Math.floor(vp_min_xy[0] / this.minorIncrement); x <= Math.ceil(vp_max_xy[0] / this.minorIncrement); x++) {
-      context.beginPath();
-      context.moveTo(x * this.minorIncrement, vp_min_xy[1]);
-      context.lineTo(x * this.minorIncrement, vp_max_xy[1]);
-      context.stroke();
-    }
-    // horizontal
-    for (y = Math.floor(vp_min_xy[1] / this.minorIncrement); y <= Math.ceil(vp_max_xy[1] / this.minorIncrement); y++) {
-      context.beginPath();
-      context.moveTo(vp_min_xy[0], y * this.minorIncrement);
-      context.lineTo(vp_max_xy[0], y * this.minorIncrement);
-      context.stroke();
-    }
-
-    // draw x, y
-    context.strokeStyle = 'rgba(255, 0, 0, 0.5)';
-    context.beginPath();
-    context.moveTo(vp_min_xy[0], 0);
-    context.lineTo(vp_max_xy[0], 0);
-    context.stroke();
-
-    context.strokeStyle = 'rgba(0, 255, 0, 0.5)';
-    context.beginPath();
-    context.moveTo(0, vp_min_xy[1]);
-    context.lineTo(0, vp_max_xy[1]);
-    context.stroke();
-  };
+function Grid(context, properties) {
+  this.context = context;
+  this.majorToMinorFoldChange = 5;
+  this.majorBaseIncrement = 1250;
+  this.tiersToDraw = 3;
+  this.color = new rgba(200, 200, 200, 0.3);
 }
+Grid.prototype.draw = function(transform) {
+  var scaleFoldChange = (new Vector2D(transform.m[0], transform.m[3])).log(this.majorToMinorFoldChange).negate();
+  var vp_min_xy = transform.untransformPoint(0, 0);
+  var vp_max_xy = transform.untransformPoint(this.context.canvas.width, this.context.canvas.height);
+  var increment_x = this.majorBaseIncrement * Math.pow(this.majorToMinorFoldChange, Math.floor(scaleFoldChange.x));
+  var increment_y = this.majorBaseIncrement * Math.pow(this.majorToMinorFoldChange, Math.floor(scaleFoldChange.y));
+  this.context.lineWidth = 1 * Math.pow(this.majorToMinorFoldChange, scaleFoldChange.x);
+
+  var i;
+  for (var tier = 0; tier < this.tiersToDraw; tier++) {
+    this.context.strokeStyle = this.color.atOpacityFactor(Math.pow(0.5, tier) - Math.pow(0.5, tier + (tier == this.tiersToDraw - 1 ? 0 : 1)) * (scaleFoldChange.x-Math.floor(scaleFoldChange.x)));
+
+    // vertical
+    for (i = Math.floor(vp_min_xy[0] / increment_x); i <= Math.ceil(vp_max_xy[0] / increment_x); i++) {
+      this.context.beginPath();
+      this.context.moveTo(i * increment_x, vp_min_xy[1]);
+      this.context.lineTo(i * increment_x, vp_max_xy[1]);
+      this.context.stroke();
+    }
+
+    // horizontal
+    for (i = Math.floor(vp_min_xy[1] / increment_y); i <= Math.ceil(vp_max_xy[1] / increment_y); i++) {
+      this.context.beginPath();
+      this.context.moveTo(vp_min_xy[0], i * increment_y);
+      this.context.lineTo(vp_max_xy[0], i * increment_y);
+      this.context.stroke();
+    }
+
+    increment_x /= this.majorToMinorFoldChange;
+    increment_y /= this.majorToMinorFoldChange;
+  }
+
+  // draw x, y
+  this.context.strokeStyle = 'rgba(255, 0, 0, 0.5)';
+  this.context.beginPath();
+  this.context.moveTo(vp_min_xy[0], 0);
+  this.context.lineTo(vp_max_xy[0], 0);
+  this.context.stroke();
+
+  this.context.strokeStyle = 'rgba(0, 255, 0, 0.5)';
+  this.context.beginPath();
+  this.context.moveTo(0, vp_min_xy[1]);
+  this.context.lineTo(0, vp_max_xy[1]);
+  this.context.stroke();
+};
+
 function OpticalElement(context, properties) {
   // initialization
   this.context = context;
@@ -716,8 +730,6 @@ function OpticalElement(context, properties) {
 // TODO: This needs to be cleaned up. I don't think this is the right way to update..
 //       The way it is now, moving child handles can cause distortion to the geometry
 OpticalElement.prototype.update = function () {
-  for (var h = 0; h < this.mouseHandles.length; h++) this.mouseHandles[h].applyConstraints()
-
   // update geometry from mouse handle positions
   this.x = this.mouseHandles[0].position.x;
   this.y = this.mouseHandles[0].position.y;
@@ -727,6 +739,8 @@ OpticalElement.prototype.update = function () {
   this.mouseHandles[2].position.y = this.mouseHandles[0].position.y;
   this.c2.dx = this.mouseHandles[3].position.x-this.mouseHandles[1].position.x;
   this.mouseHandles[3].position.y = this.mouseHandles[0].position.y;
+
+  for (var h = 0; h < this.mouseHandles.length; h++) this.mouseHandles[h].applyConstraints()
 
   // update additional circle parameters from 'dx' handle
   this.updateCircleGeometry();
@@ -884,7 +898,7 @@ LightSource.prototype.drawRaySeg = function(OpticalElements, origin, angle, sens
         if (d >= sensitivity && d < minlen) { intElem = true; minlen = d; p_int = {x:p.p2.x, y:p.p2.y}; t_int = p.p2.t; }
       }
     }
-    
+
     // right arc (circle)
     p = intersectionLineCircle(origin.x, origin.y, origin.x+Math.cos(angle), origin.y+Math.sin(angle), OpticalElements[i].c2.x, OpticalElements[i].c2.y, OpticalElements[i].c2.r);
     if (p !== null) {
@@ -1104,6 +1118,22 @@ function HSVtoRGB(h, s, v) {
 }
 function RGBtoHEX(r, g, b) {
 	return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+}
+function rgba(r, g, b, a) {
+  this.r = r;
+  this.g = g;
+  this.b = b;
+  this.a = a;
+}
+rgba.prototype.toString = function() {
+  if (this.a === undefined) return 'rgb('+this.r+','+this.g+','+this.b+')';
+  else return 'rgba('+this.r+','+this.g+','+this.b+','+this.a+')';
+}
+rgba.prototype.atOpacity = function(opacity) {
+  return new rgba(this.r, this.g, this.b, opacity);
+}
+rgba.prototype.atOpacityFactor = function(factor) {
+  return new rgba(this.r, this.g, this.b, this.a !== undefined ? this.a * factor : factor);
 }
 
 // TRANSFORMATION TRACKER
