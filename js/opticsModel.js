@@ -224,7 +224,7 @@ function KeyHandler(context, om, mh) {       // keyboard manager
         om.add(new OpticalElement(context, {x: mh.posWorld.x, y: mh.posWorld.y, h: 500, w: 1, c1:{dx:-80}, c2:{dx:80}}));
         break;
       case "KeyS":
-        om.add(new ls(context, om, {x: mh.posWorld.x, y: mh.posWorld.y, raycolor: 'rgba(236, 236, 64, 0.5)', rays: 12}));
+        om.add(new LightSource(context, om, {x: mh.posWorld.x, y: mh.posWorld.y, raycolor: 'rgba(236, 236, 64, 0.5)', rays: 12}));
         break;
       case "Delete":
         delete mh.selectedHandles.parent;
@@ -451,11 +451,14 @@ function MouseHandle(context, parent, properties) {
       this.position.applyConstraint(this.constraints[idx]);
   };
 }
+MouseHandle.prototype.update = function() {
+  this.applyConstraints();
+  this.applyCallbacks();
+}
 MouseHandle.prototype.offset = function(x, y) {
   this.position.x += x;
   this.position.y += y;
-  this.applyConstraints();
-  this.applyCallbacks();
+  this.update();
 
   for (var c = 0; c < this.children.length; c++)
     this.children[c].offset(x, y);
@@ -729,11 +732,13 @@ function OpticalElement(context, properties) {
         .addCallback((function() {
           this.w = (this.mouseHandles[1].position.x-this.mouseHandles[0].position.x)*2;
           this.h = this.h = (this.mouseHandles[0].position.y-this.mouseHandles[1].position.y)*2; }).bind(this))
+        .addCallback((function() {
+          this.mouseHandles.slice(2,4).map(function(i) { i.update(); }); }).bind(this))
     );
     // left arc handle
     this.mouseHandles.push(
       new MouseHandle(context, this, {x: this.x + this.w/2 + this.c1.dx, y: this.y})
-        .addParent(this.mouseHandles[1])
+        .addParent(this.mouseHandles[0])
         .addConstraint(new XYConstraint(
           (function() { return this.x - this.w/2 - (this.h-0.001)/2 }).bind(this), // min_x
           (function() { return this.y; }).bind(this), // min_y
@@ -750,7 +755,7 @@ function OpticalElement(context, properties) {
     // right arc handle
     this.mouseHandles.push(
       new MouseHandle(context, this, {x: this.x + this.w/2 + this.c2.dx, y: this.y})
-        .addParent(this.mouseHandles[1])
+        .addParent(this.mouseHandles[0])
         .addConstraint(new XYConstraint(
           (function() { return Math.max(this.x + this.w/2 - (this.h-0.001)/2, this.x - this.w/2 + this.c1.dx) }).bind(this), // min_x
           (function() { return this.y; }).bind(this), // min_y
