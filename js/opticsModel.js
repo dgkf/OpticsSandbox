@@ -617,16 +617,27 @@ RayConstraint.prototype.applyTo = function(point) {
   point.y = point_out.y;
   return point;
 };
-function DistanceConstraint(point, distance) {
+function DistanceConstraint(point, min_distance, max_distance) {
   this.point = point;
-  this.distance = distance;
+  this.distance = {min: min_distance, max: max_distance};
 }
 DistanceConstraint.prototype = Object.create(Constraint.prototype);
 DistanceConstraint.prototype.applyTo = function(point) {
+  var point_constrained;
   var timestamp = this.evaluateFunctionalProperties();
-  if (point.distanceSquaredTo(this.point) > Math.pow(this.distance, 2.0)) {
-    var point_constrained = (new Vector2D(point.x - this.point.x, point.y - this.point.y)).normalize().scale(this.distance).plus(this.point);
+  var d = Point2D.prototype.distanceSquaredTo.call(point, timestamp.point);
 
+  // this isn't quite working - I think it's related to a faulty input :\
+  if (false && d > Math.pow(this.distance.max, 2.0)) {
+    point_constrained = Vector2D.prototype.plus.call(
+                          Vector2D.prototype.times.call(
+                            Vector2D.prototype.normalize.call(
+                              Vector2D.prototype.minus.call(point, timestamp.point)), timestamp.distance.max), timestamp.point);
+    //point_constrained = (new Vector2D(point.x - this.point.x, point.y - this.point.y)).normalize().scale(this.distance.max).plus(this.point);
+    point.x = point_constrained.x;
+    point.y = point_constrained.y;
+  } else if (false && d < Math.pow(this.distance.min, 2.0)) {
+    point_constrained = (new Vector2D(point.x - this.point.x, point.y - this.point.y)).normalize().scale(this.distance.min).plus(this.point);
     point.x = point_constrained.x;
     point.y = point_constrained.y;
   }
@@ -831,7 +842,7 @@ function LightSource(context, objectManager, properties) {
         new Point2D(
           (function() { return this.x; }).bind(this),
           (function() { return this.y; }).bind(this)),
-        200))
+        50, 200))
       .addCallback((function() {
         this.ang = (this.mouseHandles[1].position.x < this.mouseHandles[0].position.x ? Math.PI : 0) + Math.atan((this.mouseHandles[1].position.y-this.mouseHandles[0].position.y)/(this.mouseHandles[1].position.x-this.mouseHandles[0].position.x));
         this.spray = Math.min(1, Math.max(-0.2, (Math.sqrt(Math.pow(this.mouseHandles[1].position.x-this.mouseHandles[0].position.x,2)+Math.pow(this.mouseHandles[1].position.y-this.mouseHandles[0].position.y,2))-100)*0.005)); }).bind(this))
