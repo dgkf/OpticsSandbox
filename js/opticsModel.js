@@ -50,7 +50,7 @@ function showPropertiesPanelForObject(obj) {
       $('.'+event.target.className.split(' ').join('.')).val(event.target.value);
       // strip the variable name from the input element's class and use it to update the selected object
       obj[event.target.className.match(/[^ ]+$/mg)[0]] = event.target.value;
-      obj.updateMouseHandles();
+      if (obj.updateMouseHandles !== undefined) obj.updateMouseHandles();
     });
   }
 }
@@ -891,7 +891,7 @@ function LightSource(context, objectManager, properties) {
     // rotation
 		this.mouseHandles.push(new MouseHandle(context, this, {x: 0, y: 0})
       .addParent(this.mouseHandles[0])
-      .initProperty('sprayScalar', 0.02) // value used for scaling distance from light to angle
+      .initProperty('sprayScalar', 0.05) // value used for scaling distance from light to angle
       .addPropertyBinding(function() {
         this.position.x = this.parentObject.position.x + Math.cos(this.parentObject.ang) * (2 * Math.PI - this.parentObject.spray) / this._sprayScalar;
         this.position.y = this.parentObject.position.y + Math.sin(this.parentObject.ang) * (2 * Math.PI -  this.parentObject.spray) / this._sprayScalar; })
@@ -906,8 +906,6 @@ function LightSource(context, objectManager, properties) {
         this.parentObject.ang = Vector2D.prototype.angleBetween.call({x: 1, y: 0},
           Vector2D.prototype.minus.call(this.position, this.parentObject.position)); })
     );
-
-    console.log(this.mouseHandles[2]);
 	};
 
 	this.initMouseHandles();
