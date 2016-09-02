@@ -50,6 +50,7 @@ function showPropertiesPanelForObject(obj) {
       $('.'+event.target.className.split(' ').join('.')).val(event.target.value);
       // strip the variable name from the input element's class and use it to update the selected object
       obj[event.target.className.match(/[^ ]+$/mg)[0]] = event.target.value;
+      obj.updateMouseHandles();
     });
   }
 }
@@ -69,21 +70,17 @@ Point2D.prototype.set = function(x, y) {
 Point2D.prototype.toVector2D = function() {
   return new Vector2D(this.x, this.y);
 };
-Point2D.prototype.plus = function(other_point2D) {
-  this.x += other_point2D.x;
-  this.y += other_point2D.y;
-  return this;
+Point2D.prototype.plus = function(other_Point2D) {
+  return new Point2D(this.x + other_Point2D.x, this.y + other_Point2D.y);
 };
-Point2D.prototype.minux = function(other_point2D) {
-  this.x -= other_point2D.x;
-  this.y -= other_point2D.y;
-  return this;
+Point2D.prototype.minus = function(other_Point2D) {
+  return {x: this.x - other_Point2D.x, y: this.y - other_Point2D.y};
 };
-Point2D.prototype.distanceTo = function(other_point2D) {
-  return Math.sqrt(Math.pow(this.x-other_point2D.x, 2.0)+Math.pow(this.y-other_point2D.y, 2.0));
+Point2D.prototype.distanceTo = function(other_Point2D) {
+  return Math.sqrt(Math.pow(this.x-other_Point2D.x, 2.0)+Math.pow(this.y-other_Point2D.y, 2.0));
 }
-Point2D.prototype.distanceSquaredTo = function(other_point2D) {
-  return Math.pow(this.x-other_point2D.x, 2.0)+Math.pow(this.y-other_point2D.y, 2.0);
+Point2D.prototype.distanceSquaredTo = function(other_Point2D) {
+  return Math.pow(this.x-other_Point2D.x, 2.0)+Math.pow(this.y-other_Point2D.y, 2.0);
 }
 Point2D.prototype.applyConstraint = function(constraint) {
   return constraint.applyTo(this)
@@ -97,58 +94,39 @@ Vector2D.prototype.fromPoint = function(point) {
   this.y = point.y;
 };
 Vector2D.prototype.mag = function() {
-  return this.x * this.x + this.y * this.y;
+  return Math.sqrt(this.x * this.x + this.y * this.y);
 };
 Vector2D.prototype.negate = function() {
-  this.x *= -1.0;
-  this.y *= -1.0;
-  return this;
+  return new Vector2D(-this.x, -this.y);
 }
 Vector2D.prototype.normalize = function() {
-  var mag = Vector2D.prototype.mag.call(this);
-  this.x *= mag;
-  this.y *= mag;
-  return this;
+  var mag_inv = 1/Vector2D.prototype.mag.call(this);
+  return new Vector2D(this.x * mag_inv, this.y * mag_inv);
 };
 Vector2D.prototype.times = function(scalar) {
-  this.x *= scalar;
-  this.y *= scalar;
-  return this;
+  return new Vector2D(this.x * scalar, this.y * scalar);
 };
 Vector2D.prototype.divide = function(scalar) {
-  this.x /= scalar;
-  this.y /= scalar;
-  return this;
+  scalar = 1/scalar;
+  return new Vector2D(this.x * scalar, this.y * scalar);
 };
 Vector2D.prototype.log2 = function() {
-  this.x = Math.log2(this.x);
-  this.y = Math.log2(this.y);
-  return this;
+  return new Vector2D(Math.log2(this.x), Math.log2(this.y));
 };
 Vector2D.prototype.log10 = function() {
-  this.x = Math.log10(this.x);
-  this.y = Math.log10(this.y);
-  return this;
+  return new Vector2D(Math.log10(this.x), Math.log10(this.y));
 };
 Vector2D.prototype.log = function(scalar) {
-  this.x = Math.log(this.x)/Math.log(scalar);
-  this.y = Math.log(this.y)/Math.log(scalar);
-  return this;
+  return new Vector2D(Math.log(this.x)/Math.log(scalar), Math.log(this.y)/Math.log(scalar));
 }
 Vector2D.prototype.pow = function(scalar) {
-  this.x = Math.pow(this.x, scalar);
-  this.y = Math.pow(this.y, scalar);
-  return this;
+  return new Vector2D(Math.pow(this.x, scalar), Math.pow(this.y, scalar));
 };
 Vector2D.prototype.plus = function(other_Vector2D) {
-  this.x += other_Vector2D.x;
-  this.y += other_Vector2D.y;
-  return this;
+  return new Vector2D(this.x + other_Vector2D.x, this.y + other_Vector2D.y);
 };
 Vector2D.prototype.minus = function(other_Vector2D) {
-  this.x -= other_Vector2D.x;
-  this.y -= other_Vector2D.y;
-  return this;
+  return new Vector2D(this.x - other_Vector2D.x, this.y - other_Vector2D.y);
 };
 Vector2D.prototype.dot = function(other_Vector2D) {
   return this.x * other_Vector2D.x + this.y * other_Vector2D.y;
@@ -166,6 +144,12 @@ Vector2D.prototype.projectAlongUnitVector = function(other_unit_Vector2D) {
   return Vector2D.prototype.times.call(other_Vector2D,
            Vector2D.prototype.dot.call(this, other_unit_Vector2D));
 };
+Vector2D.prototype.angleBetween = function(other_Vector2D) {
+  return (this.y > other_Vector2D.y ? -1 : 1) * Math.acos(Vector2D.prototype.dot.call(Vector2D.prototype.normalize.call(this), Vector2D.prototype.normalize.call(other_Vector2D)));
+}
+Vector2D.prototype.distanceAlong = function(other_Vector2D) {
+  return Vector2D.prototype.dot.call(this, other_Vector2D);
+}
 function Ray2D(point2D, vector2D) {
   this.point = point2D;
   this.vector = vector2D;
@@ -446,10 +430,7 @@ function MouseHandle(context, parent, properties) {
 
   this.constraints = [];
   this.callbacks = [];
-  var applyConstraints = function() {
-    for (var idx = 0; idx < this.constraints.length; idx++)
-      this.position.applyConstraint(this.constraints[idx]);
-  };
+  this.bindings = [];
 }
 MouseHandle.prototype.update = function() {
   this.applyConstraints();
@@ -475,9 +456,28 @@ MouseHandle.prototype.moveTo = function(x, y) {
 
   return this;
 }
+MouseHandle.prototype.initProperty = function(name, value) {
+  this['_'+name] = value;
+  return this;
+}
+MouseHandle.prototype.applyBindings = function() {
+  for (var b = 0; b < this.bindings.length; b++)
+    // call it passing this object as the this parameter if it is unbound
+    if (this.bindings[b].hasOwnProperty('prototype'))
+      this.bindings[b].call(this);
+    else
+      this.bindings[b]();
+
+  return this;
+}
+MouseHandle.prototype.addPropertyBinding = function(binding) {
+  this.bindings.push(binding);
+  return this;
+}
 MouseHandle.prototype.applyConstraints = function() {
-  for (var c = 0; c < this.constraints.length; c++)
+  for (var c = 0; c < this.constraints.length; c++) {
     this.position.applyConstraint(this.constraints[c]);
+  }
 
   return this;
 }
@@ -487,7 +487,11 @@ MouseHandle.prototype.addConstraint = function(constraint) {
 }
 MouseHandle.prototype.applyCallbacks = function() {
   for (var c = 0; c < this.callbacks.length; c++)
-    this.callbacks[c]();
+    // call it passing this object as the this parameter if it is unbound
+    if (this.callbacks[c].hasOwnProperty('prototype'))
+      this.callbacks[c].call(this);
+    else
+      this.callbacks[c]();
 
   return this;
 }
@@ -817,13 +821,13 @@ OpticalElement.prototype.pointWithin = function(x, y) {
 
   return 1;
 };
-function LightSource(context, objectManager, properties) {
+function LightSource2(context, objectManager, properties) {
 	this.context = context;
   this.objectManager = objectManager;
 
 	this.type = properties && properties.type !== undefined ? properties.type : 'sun';
-	this.spray = properties && properties.spray !== undefined ? properties.spray : 3.0;
-	this.w = properties && properties.w !== undefined ? properties.w : 5;
+	this.spray = properties && properties.spray !== undefined ? properties.spray : 10;
+	this.w = properties && properties.w !== undefined ? properties.w : 10;
 	this.x = properties && properties.x !== undefined ? properties.x : 500;
 	this.y = properties && properties.y !== undefined ? properties.y : 200;
 	this.r = properties && properties.r !== undefined ? properties.r : 10;
@@ -841,19 +845,19 @@ function LightSource(context, objectManager, properties) {
         this.y = this.mouseHandles[0].position.y; }).bind(this))
     );
     // angle and spread
-		this.mouseHandles.push(new MouseHandle(context,this,{x: this.x - 50, y: this.y})
+		this.mouseHandles.push(new MouseHandle(context,this,{x: this.x - 150, y: this.y})
       .addParent(this.mouseHandles[0])
       .addConstraint(new DistanceConstraint(
         new Point2D(
           (function() { return this.x; }).bind(this),
           (function() { return this.y; }).bind(this)),
-        50, 200))
+        0, 200))
       .addCallback((function() {
         this.ang = (this.mouseHandles[1].position.x < this.mouseHandles[0].position.x ? Math.PI : 0) + Math.atan((this.mouseHandles[1].position.y-this.mouseHandles[0].position.y)/(this.mouseHandles[1].position.x-this.mouseHandles[0].position.x));
         this.spray = Math.min(1, Math.max(-0.2, (Math.sqrt(Math.pow(this.mouseHandles[1].position.x-this.mouseHandles[0].position.x,2)+Math.pow(this.mouseHandles[1].position.y-this.mouseHandles[0].position.y,2))-100)*0.005)); }).bind(this))
     );
     // ray separation
-		this.mouseHandles.push(new MouseHandle(context,this,{x: this.x - 50, y: this.y})
+		this.mouseHandles.push(new MouseHandle(context,this,{x: this.x, y: this.y})
       .addParent(this.mouseHandles[0])
       .addConstraint(new RayConstraint(
         new Ray2D(
@@ -872,8 +876,75 @@ function LightSource(context, objectManager, properties) {
 
 	this.initMouseHandles();
 }
+function LightSource(context, objectManager, properties) {
+	this.context = context;
+  this.objectManager = objectManager;
+
+	this.type = properties && properties.type !== undefined ? properties.type : 'sun';
+	this.position = new Point2D(properties && properties.x !== undefined ? properties.x : 500,
+	                            properties && properties.y !== undefined ? properties.y : 200);
+	this.r = properties && properties.r !== undefined ? properties.r : 10;
+	this.rays = properties && properties.rays !== undefined ? properties.rays   : 24;
+	this.raycolor = properties && properties.raycolor !== undefined ? properties.raycolor : '';
+	this.ang = properties && properties.ang !== undefined ? properties.ang : Math.PI;
+  this.spray = properties && properties.spray !== undefined ? properties.spray : 0.1;
+  this.spread = properties && properties.w !== undefined ? properties.w : 10;
+	this.mouseHandles = [];
+
+  this.initMouseHandles = function() {
+    // origin - uses parent collision
+    this.mouseHandles.push(new MouseHandle(context, this, {r: this.r, visible: false, useParentCollision: true})
+      .addPropertyBinding(function() {
+        this.position.x = this.parentObject.position.x;
+        this.position.y = this.parentObject.position.y; })
+      .addCallback(function() {
+        this.parentObject.position.x = this.position.x;
+        this.parentObject.position.y = this.position.y; })
+    );
+
+    // ray spread (width of offset orthogonal to angle of projection)
+		this.mouseHandles.push(new MouseHandle(context, this)
+      .addParent(this.mouseHandles[0])
+      .addPropertyBinding(function() {
+        this.position.x = this.parentObject.position.x - Math.sin(this.parentObject.ang) * this.parentObject.spread;
+        this.position.y = this.parentObject.position.y + Math.cos(this.parentObject.ang) * this.parentObject.spread; })
+      .addConstraint(new RayConstraint(
+        new Ray2D(
+          new Point2D(
+            (function() { return this.position.x; }).bind(this),
+            (function() { return this.position.y; }).bind(this)),
+          new Vector2D(
+            (function() { return -Math.sin(this.ang); }).bind(this),
+            (function() { return  Math.cos(this.ang); }).bind(this)))))
+      .addCallback(function() {
+        this.parentObject.spread = Vector2D.prototype.distanceAlong.call(
+                                     Vector2D.prototype.minus.call(this.parentObject.position, this.position),
+                                     {x: Math.sin(this.parentObject.ang), y: -Math.cos(this.parentObject.ang)}); })
+    );
+
+    // ray spray (difference in max and min ray angle) &
+    // rotation
+		this.mouseHandles.push(new MouseHandle(context, this, {x: 0, y: 0})
+      .addParent(this.mouseHandles[0])
+      .initProperty('sprayScalar', 0.005) // value used for scaling distance from light to angle
+      .addPropertyBinding(function() {
+        this.position.x = this.parentObject.position.x + Math.cos(this.parentObject.ang) * this.parentObject.spray / this._sprayScalar;
+        this.position.y = this.parentObject.position.y + Math.sin(this.parentObject.ang) * this.parentObject.spray / this._sprayScalar; })
+      .addCallback(function() {
+        this.parentObject.spray = Point2D.prototype.distanceTo.call(this.parentObject.position, this.position) * this._sprayScalar;
+        this.parentObject.ang = Vector2D.prototype.angleBetween.call({x: 1, y: 0},
+          Vector2D.prototype.minus.call(this.position, this.parentObject.position)); })
+    );
+	};
+
+	this.initMouseHandles();
+  this.updateMouseHandles();
+}
+LightSource.prototype.updateMouseHandles = function() {
+  for (var h = 0; h < this.mouseHandles.length; h++) this.mouseHandles[h].applyBindings();
+}
 LightSource.prototype.pointWithin = function(x, y) {
-   return Math.pow(x-this.x,2)+Math.pow(y-this.y,2)<=Math.pow(this.r,2);
+   return Math.pow(x-this.position.x,2)+Math.pow(y-this.position.y,2)<=Math.pow(this.r,2);
 };
 LightSource.prototype.draw = function() {
   switch(this.type) {
@@ -889,12 +960,12 @@ LightSource.prototype.draw = function() {
   this.context.fillStyle = (this.raycolor === '' ? '#FFFFAA' : this.raycolor);
 
   this.context.beginPath();
-  this.context.moveTo(this.x+this.r, this.y);
+  this.context.moveTo(this.position.x+this.r, this.position.y);
   this.context.fillStyle = this.objectManager.clearColor;
-  this.context.arc(this.x, this.y, this.r, 0, 2*Math.PI, false);
+  this.context.arc(this.position.x, this.position.y, this.r, 0, 2*Math.PI, false);
   this.context.fill();
   this.context.fillStyle = (this.raycolor === '' ? '#FFFFAA' : this.raycolor);
-  this.context.arc(this.x, this.y, this.r, 0, 2*Math.PI, false);
+  this.context.arc(this.position.x, this.position.y, this.r, 0, 2*Math.PI, false);
   this.context.fill();
 };
 LightSource.prototype.drawRaySeg = function(OpticalElements, origin, angle, sensitivity, allowInternalRefraction) {
@@ -1023,7 +1094,7 @@ LightSource.prototype.drawRaysSun = function(OpticalElements) {
     this.context.lineWidth = 0.5;
     this.context.fillStyle = 'none';
     this.context.strokeStyle = (this.raycolor === '' ? HSVtoHEX(i/this.rays, 0.3, 1.0) : this.raycolor);
-    this.drawRaySeg(OpticalElements, {x:this.x, y:this.y}, i/this.rays*2*Math.PI, 0.0001, false);
+    this.drawRaySeg(OpticalElements, {x:this.position.x, y:this.position.y}, i/this.rays*2*Math.PI, 0.0001, false);
   }
 };
 LightSource.prototype.drawRaysSpot = function(OpticalElements) {
@@ -1032,9 +1103,9 @@ LightSource.prototype.drawRaysSpot = function(OpticalElements) {
     this.context.fillStyle = 'none';
     this.context.strokeStyle = (this.raycolor === '' ? HSVtoHEX(i/this.rays, 0.3, 1.0) : this.raycolor);
     this.drawRaySeg(OpticalElements,
-                    {x:this.x+Math.sin(this.ang)*this.w*(i-(this.rays-1)*0.5)/this.rays,
-                     y:this.y-Math.cos(this.ang)*this.w*(i-(this.rays-1)*0.5)/this.rays},
-                    this.ang+this.spray*Math.PI*((this.rays-1)*0.5-i)/(this.rays), 0.0001, false);
+                    {x:this.position.x+Math.sin(this.ang)*this.spread*2*(i-(this.rays-1)*0.5)/this.rays,
+                     y:this.position.y-Math.cos(this.ang)*this.spread*2*(i-(this.rays-1)*0.5)/this.rays},
+                    this.ang+this.spray*2*((this.rays-1)*0.5-i)/this.rays, 0.0001, false);
   }
 };
 LightSource.prototype.drawHandles = function() {
