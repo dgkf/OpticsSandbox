@@ -393,7 +393,7 @@ function MouseHandler(context, om, vp) {				    // mouse manager
     }
   };
   this.handleMouseWheel = function(event) {
-    vp.applyZoom(Math.pow(1.1, -event.deltaY * 0.01));
+    vp.applyZoom(Math.pow(1.1, -event.deltaY * (/firefox/gi.test(navigator.userAgent) ? 0.333 : 0.01)));
   };
 
 	this.draw = function(transform) {
@@ -413,7 +413,7 @@ function MouseHandler(context, om, vp) {				    // mouse manager
   context.canvas.addEventListener("mousedown", this.handleMouseDown, false);
   context.canvas.addEventListener("mouseup", this.handleMouseUp, false);
   context.canvas.addEventListener("mousemove", this.handleMouseMove, false);
-  context.canvas.addEventListener("mousewheel", this.handleMouseWheel, false);
+  context.canvas.addEventListener("wheel", this.handleMouseWheel, false);
 }
 function MouseHandle(context, parent, properties) {
   this.context = context;

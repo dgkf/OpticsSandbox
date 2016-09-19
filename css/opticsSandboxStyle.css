@@ -66,6 +66,9 @@ canvas:focus {
 .opticsSandbox-Panel input[type=range]:focus::-webkit-slider-runnable-track {
     background: rgb(180,180,180);
 }
+.opticsSandbox-Panel input[type=number] {}
+  -moz-appearance: textfield;
+}
 .opticsSandbox-Panel input[type=number]::-webkit-inner-spin-button,
 .opticsSandbox-Panel input[type=number]::-webkit-outer-spin-button {
   -webkit-appearance: none;
